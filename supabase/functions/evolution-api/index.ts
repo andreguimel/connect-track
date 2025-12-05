@@ -12,9 +12,17 @@ serve(async (req) => {
   }
 
   try {
-    const { action, apiUrl, apiKey, instanceName, instanceId } = await req.json();
+    const { action, instanceName, instanceId } = await req.json();
     
     console.log(`Evolution API action: ${action}, instance: ${instanceName}`);
+
+    // Get Evolution API credentials from environment variables
+    const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
+    const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
+
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      throw new Error('Evolution API URL and Key not configured');
+    }
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -35,10 +43,10 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const baseUrl = apiUrl.replace(/\/$/, '');
+    const baseUrl = evolutionApiUrl.replace(/\/$/, '');
     const headers = {
       'Content-Type': 'application/json',
-      'apikey': apiKey,
+      'apikey': evolutionApiKey,
     };
 
     let result: any = {};
