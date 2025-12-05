@@ -94,7 +94,7 @@ export default function Auth() {
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-hero shadow-lg mb-4">
             <Zap className="h-8 w-8 text-primary-foreground" />
           </div>
-          <h1 className="font-display text-3xl font-bold text-foreground">ZapSender</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground">ZapMassa</h1>
           <p className="mt-2 text-muted-foreground">
             Mensagens em massa para WhatsApp
           </p>
