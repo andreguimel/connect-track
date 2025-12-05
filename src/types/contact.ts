@@ -1,8 +1,16 @@
+export interface ContactGroup {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: Date;
+}
+
 export interface Contact {
   id: string;
   name: string;
   phone: string;
   email?: string;
+  groupId?: string;
   tags?: string[];
   createdAt: Date;
 }

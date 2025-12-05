@@ -1,9 +1,66 @@
-import { Contact, Campaign, CampaignContact } from '@/types/contact';
+import { Contact, Campaign, CampaignContact, ContactGroup } from '@/types/contact';
 
 const CONTACTS_KEY = 'whatsapp_contacts';
 const CAMPAIGNS_KEY = 'whatsapp_campaigns';
+const GROUPS_KEY = 'whatsapp_groups';
 
 export const generateId = () => crypto.randomUUID();
+
+// Groups
+export const getGroups = (): ContactGroup[] => {
+  const data = localStorage.getItem(GROUPS_KEY);
+  if (!data) return [];
+  return JSON.parse(data).map((g: ContactGroup) => ({
+    ...g,
+    createdAt: new Date(g.createdAt),
+  }));
+};
+
+export const saveGroups = (groups: ContactGroup[]) => {
+  localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+};
+
+export const addGroup = (name: string, color: string): ContactGroup => {
+  const groups = getGroups();
+  const group: ContactGroup = {
+    id: generateId(),
+    name,
+    color,
+    createdAt: new Date(),
+  };
+  groups.push(group);
+  saveGroups(groups);
+  return group;
+};
+
+export const updateGroup = (id: string, name: string, color: string) => {
+  const groups = getGroups();
+  const index = groups.findIndex(g => g.id === id);
+  if (index !== -1) {
+    groups[index].name = name;
+    groups[index].color = color;
+    saveGroups(groups);
+  }
+};
+
+export const deleteGroup = (id: string) => {
+  const groups = getGroups().filter(g => g.id !== id);
+  saveGroups(groups);
+  // Remove group from contacts
+  const contacts = getContacts().map(c => 
+    c.groupId === id ? { ...c, groupId: undefined } : c
+  );
+  saveContacts(contacts);
+};
+
+export const updateContactGroup = (contactId: string, groupId: string | undefined) => {
+  const contacts = getContacts();
+  const index = contacts.findIndex(c => c.id === contactId);
+  if (index !== -1) {
+    contacts[index].groupId = groupId;
+    saveContacts(contacts);
+  }
+};
 
 // Contacts
 export const getContacts = (): Contact[] => {

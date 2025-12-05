@@ -1,13 +1,20 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Send, Users, MessageSquare, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, Users, MessageSquare, Check, AlertCircle, Loader2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Contact, Campaign } from '@/types/contact';
-import { getContacts, createCampaign, updateCampaign, getCampaigns, updateCampaignContactStatus } from '@/lib/storage';
+import { Contact, Campaign, ContactGroup } from '@/types/contact';
+import { getContacts, createCampaign, updateCampaign, getCampaigns, updateCampaignContactStatus, getGroups } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface SendMessageProps {
   webhookUrl: string;
@@ -17,19 +24,39 @@ interface SendMessageProps {
 export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps) {
   const { toast } = useToast();
   const [contacts] = useState<Contact[]>(getContacts());
+  const [groups] = useState<ContactGroup[]>(getGroups());
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [campaignName, setCampaignName] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
 
   const filteredContacts = useMemo(() => {
-    if (!searchTerm) return contacts;
-    const term = searchTerm.toLowerCase();
-    return contacts.filter(
-      c => c.name.toLowerCase().includes(term) || c.phone.includes(term)
-    );
-  }, [contacts, searchTerm]);
+    let filtered = contacts;
+    
+    if (selectedGroupFilter !== 'all') {
+      if (selectedGroupFilter === 'none') {
+        filtered = filtered.filter(c => !c.groupId);
+      } else {
+        filtered = filtered.filter(c => c.groupId === selectedGroupFilter);
+      }
+    }
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        c => c.name.toLowerCase().includes(term) || c.phone.includes(term)
+      );
+    }
+    
+    return filtered;
+  }, [contacts, searchTerm, selectedGroupFilter]);
+
+  const getGroupById = (groupId: string | undefined) => {
+    if (!groupId) return null;
+    return groups.find(g => g.id === groupId);
+  };
 
   const toggleContact = (id: string) => {
     const newSelected = new Set(selectedContactIds);
@@ -42,11 +69,25 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   };
 
   const toggleAll = () => {
-    if (selectedContactIds.size === filteredContacts.length) {
-      setSelectedContactIds(new Set());
+    if (selectedContactIds.size === filteredContacts.length && filteredContacts.length > 0) {
+      // Deselect all filtered
+      const newSelected = new Set(selectedContactIds);
+      filteredContacts.forEach(c => newSelected.delete(c.id));
+      setSelectedContactIds(newSelected);
     } else {
-      setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
+      // Select all filtered
+      const newSelected = new Set(selectedContactIds);
+      filteredContacts.forEach(c => newSelected.add(c.id));
+      setSelectedContactIds(newSelected);
     }
+  };
+
+  const selectGroupOnly = (groupId: string) => {
+    const groupContacts = contacts.filter(c => 
+      groupId === 'none' ? !c.groupId : c.groupId === groupId
+    );
+    setSelectedContactIds(new Set(groupContacts.map(c => c.id)));
+    setSelectedGroupFilter(groupId);
   };
 
   const sendViaWebhook = async (campaign: Campaign) => {
@@ -166,6 +207,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setSelectedContactIds(new Set());
   }, [campaignName, message, selectedContactIds, webhookUrl, toast, onCampaignCreated]);
 
+  const filteredSelectedCount = filteredContacts.filter(c => selectedContactIds.has(c.id)).length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -260,16 +303,69 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                 {selectedContactIds.size} de {contacts.length} selecionados
               </span>
             </div>
-            <div className="mt-4 flex gap-2">
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar contatos..."
-                className="flex-1"
-              />
-              <Button variant="outline" onClick={toggleAll}>
-                {selectedContactIds.size === filteredContacts.length ? 'Desmarcar' : 'Selecionar'} Todos
-              </Button>
+            <div className="mt-4 flex flex-col gap-3">
+              <div className="flex gap-2">
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar contatos..."
+                  className="flex-1"
+                />
+                <Button variant="outline" onClick={toggleAll}>
+                  {filteredSelectedCount === filteredContacts.length && filteredContacts.length > 0 ? 'Desmarcar' : 'Selecionar'} Todos
+                </Button>
+              </div>
+              
+              {/* Group Filter */}
+              <div className="flex gap-2 items-center">
+                <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
+                  <SelectTrigger className="flex-1">
+                    <Tag className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Filtrar por grupo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os grupos</SelectItem>
+                    <SelectItem value="none">Sem grupo</SelectItem>
+                    {groups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        <div className="flex items-center gap-2">
+                          <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                          {group.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedGroupFilter !== 'all' && (
+                  <Button 
+                    variant="secondary" 
+                    size="sm"
+                    onClick={() => selectGroupOnly(selectedGroupFilter)}
+                  >
+                    Selecionar Grupo
+                  </Button>
+                )}
+              </div>
+
+              {/* Quick Group Selection */}
+              {groups.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {groups.map((group) => {
+                    const groupCount = contacts.filter(c => c.groupId === group.id).length;
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => selectGroupOnly(group.id)}
+                        className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:bg-accent"
+                      >
+                        <div className={`h-2.5 w-2.5 rounded-full ${group.color}`} />
+                        {group.name} ({groupCount})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -284,26 +380,43 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                   Importe contatos na aba Contatos
                 </p>
               </div>
+            ) : filteredContacts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Tag className="h-12 w-12 text-muted-foreground/30" />
+                <p className="mt-4 text-muted-foreground">
+                  Nenhum contato neste grupo
+                </p>
+              </div>
             ) : (
               <div className="divide-y">
-                {filteredContacts.map((contact) => (
-                  <label
-                    key={contact.id}
-                    className="flex cursor-pointer items-center gap-4 p-4 transition-colors hover:bg-accent/50"
-                  >
-                    <Checkbox
-                      checked={selectedContactIds.has(contact.id)}
-                      onCheckedChange={() => toggleContact(contact.id)}
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">{contact.name}</p>
-                      <p className="text-sm text-muted-foreground">{contact.phone}</p>
-                    </div>
-                    {selectedContactIds.has(contact.id) && (
-                      <Check className="h-5 w-5 text-primary" />
-                    )}
-                  </label>
-                ))}
+                {filteredContacts.map((contact) => {
+                  const group = getGroupById(contact.groupId);
+                  return (
+                    <label
+                      key={contact.id}
+                      className="flex cursor-pointer items-center gap-4 p-4 transition-colors hover:bg-accent/50"
+                    >
+                      <Checkbox
+                        checked={selectedContactIds.has(contact.id)}
+                        onCheckedChange={() => toggleContact(contact.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-foreground truncate">{contact.name}</p>
+                          {group && (
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${group.color} text-white`}>
+                              {group.name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                      </div>
+                      {selectedContactIds.has(contact.id) && (
+                        <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                      )}
+                    </label>
+                  );
+                })}
               </div>
             )}
           </div>
