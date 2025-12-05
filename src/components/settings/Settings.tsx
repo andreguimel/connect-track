@@ -133,17 +133,15 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
       const payload = {
         key: evolutionSettings.apiKey,
         remoteJid: `${phone}@s.whatsapp.net`,
-        data: {
-          campaignId: 'test-' + Date.now(),
-          contactId: 'test-contact',
-          phone,
-          name: 'Teste',
-          message: testMessage,
-          timestamp: new Date().toISOString(),
-          isTest: true,
-          evolutionApiUrl: evolutionSettings.apiUrl,
-          evolutionInstance: evolutionSettings.instanceName,
-        },
+        campaignId: 'test-' + Date.now(),
+        contactId: 'test-contact',
+        phone,
+        name: 'Teste',
+        message: testMessage,
+        timestamp: new Date().toISOString(),
+        isTest: true,
+        evolutionApiUrl: evolutionSettings.apiUrl,
+        evolutionInstance: evolutionSettings.instanceName,
       };
 
       console.log('Enviando mensagem de teste via proxy:', payload);
