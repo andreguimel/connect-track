@@ -6,8 +6,7 @@ import { CampaignsList } from '@/components/campaigns/CampaignsList';
 import { SendMessage } from '@/components/send/SendMessage';
 import { Settings } from '@/components/settings/Settings';
 import { TemplatesManager } from '@/components/templates/TemplatesManager';
-import { Campaign } from '@/types/contact';
-import { updateCampaign, getCampaigns, updateCampaignContactStatus } from '@/lib/storage';
+import { useCampaigns, Campaign } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -24,6 +23,7 @@ const N8N_WEBHOOK_URL = 'https://oito.codigopro.tech/webhook/70343adc-43eb-4015-
 
 const Index = () => {
   const { toast } = useToast();
+  const { updateCampaign, getCampaignContacts, updateCampaignContactStatus, fetchCampaigns } = useCampaigns();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [webhookUrl, setWebhookUrl] = useState(() => {
     return localStorage.getItem(WEBHOOK_STORAGE_KEY) || N8N_WEBHOOK_URL;
@@ -59,12 +59,12 @@ const Index = () => {
     }
 
     setIsSending(true);
-    campaign.status = 'running';
-    updateCampaign(campaign);
+    await updateCampaign(campaign.id, { status: 'running' });
     setRefreshKey(k => k + 1);
 
+    const campaignContacts = await getCampaignContacts(campaign.id);
+    const pendingContacts = campaignContacts.filter(cc => cc.status === 'pending');
     let batchCount = 0;
-    const pendingContacts = campaign.contacts.filter(cc => cc.status === 'pending');
 
     toast({
       title: "Campanha iniciada",
@@ -72,24 +72,21 @@ const Index = () => {
     });
 
     for (const cc of pendingContacts) {
-      // Check daily limit before each send
       if (!canSendMore(antiBanSettings)) {
         toast({
           title: "Limite diário atingido",
           description: "Campanha pausada. Continue amanhã.",
           variant: "destructive",
         });
-        campaign.status = 'paused';
-        updateCampaign(campaign);
+        await updateCampaign(campaign.id, { status: 'paused' });
         break;
       }
 
       try {
-        updateCampaignContactStatus(campaign.id, cc.contactId, 'sending');
+        await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sending');
         setRefreshKey(k => k + 1);
 
-        // Apply message variation if enabled
-        let finalMessage = campaign.message.replace('{nome}', cc.contact.name);
+        let finalMessage = campaign.message.replace('{nome}', cc.contact?.name || '');
         if (antiBanSettings.enableRandomVariation) {
           finalMessage = addMessageVariation(finalMessage);
         }
@@ -99,10 +96,12 @@ const Index = () => {
             webhookUrl,
             payload: {
               campaignId: campaign.id,
-              contactId: cc.contactId,
-              phone: cc.contact.phone,
-              name: cc.contact.name,
+              contactId: cc.contact_id,
+              phone: cc.contact?.phone,
+              name: cc.contact?.name,
               message: finalMessage,
+              mediaUrl: campaign.media_url,
+              mediaType: campaign.media_type,
               timestamp: new Date().toISOString(),
             },
           },
@@ -110,12 +109,11 @@ const Index = () => {
 
         if (error) throw error;
 
-        updateCampaignContactStatus(campaign.id, cc.contactId, 'sent');
+        await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent');
         incrementDailySentCount();
         setRefreshKey(k => k + 1);
         batchCount++;
 
-        // Batch pause
         if (batchCount >= antiBanSettings.batchSize) {
           toast({
             title: "Pausa entre lotes",
@@ -126,15 +124,14 @@ const Index = () => {
           );
           batchCount = 0;
         } else {
-          // Random delay between messages
           const delay = getRandomDelay(antiBanSettings);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       } catch (error) {
         console.error('Error sending message:', error);
-        updateCampaignContactStatus(
+        await updateCampaignContactStatus(
           campaign.id,
-          cc.contactId,
+          cc.contact_id,
           'failed',
           error instanceof Error ? error.message : 'Erro desconhecido'
         );
@@ -143,19 +140,24 @@ const Index = () => {
     }
 
     setIsSending(false);
-    const updated = getCampaigns().find(c => c.id === campaign.id);
-    if (updated && updated.stats.pending === 0) {
-      updated.status = 'completed';
-      updated.completedAt = new Date();
-      updateCampaign(updated);
+    
+    // Check if campaign is complete
+    const updatedContacts = await getCampaignContacts(campaign.id);
+    const stillPending = updatedContacts.filter(c => c.status === 'pending').length;
+    if (stillPending === 0) {
+      await updateCampaign(campaign.id, { 
+        status: 'completed', 
+        completed_at: new Date().toISOString() 
+      });
     }
 
+    await fetchCampaigns();
     setRefreshKey(k => k + 1);
     toast({
       title: "Campanha finalizada",
       description: `Restam ${getRemainingDaily(antiBanSettings)} envios hoje`,
     });
-  }, [webhookUrl, toast]);
+  }, [webhookUrl, toast, updateCampaign, getCampaignContacts, updateCampaignContactStatus, fetchCampaigns]);
 
   const handleCampaignCreated = () => {
     setRefreshKey(k => k + 1);

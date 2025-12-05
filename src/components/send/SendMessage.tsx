@@ -1,12 +1,12 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Send, Users, MessageSquare, Check, AlertCircle, Loader2, Tag, FileText } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Contact, Campaign, ContactGroup, MessageTemplate } from '@/types/contact';
-import { getContacts, createCampaign, updateCampaign, getCampaigns, updateCampaignContactStatus, getGroups, getTemplates } from '@/lib/storage';
+import { Switch } from '@/components/ui/switch';
+import { useContacts, useGroups, useTemplates, useCampaigns, Campaign } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -23,9 +23,11 @@ interface SendMessageProps {
 
 export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps) {
   const { toast } = useToast();
-  const [contacts] = useState<Contact[]>(getContacts());
-  const [groups] = useState<ContactGroup[]>(getGroups());
-  const [templates] = useState<MessageTemplate[]>(getTemplates());
+  const { contacts } = useContacts();
+  const { groups } = useGroups();
+  const { templates } = useTemplates();
+  const { createCampaign, updateCampaign, getCampaignContacts, updateCampaignContactStatus, uploadCampaignMedia } = useCampaigns();
+  
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [campaignName, setCampaignName] = useState('');
   const [message, setMessage] = useState('');
@@ -33,15 +35,27 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('none');
+  
+  // Scheduling
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  
+  // Media
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredContacts = useMemo(() => {
     let filtered = contacts;
     
     if (selectedGroupFilter !== 'all') {
       if (selectedGroupFilter === 'none') {
-        filtered = filtered.filter(c => !c.groupId);
+        filtered = filtered.filter(c => !c.group_id);
       } else {
-        filtered = filtered.filter(c => c.groupId === selectedGroupFilter);
+        filtered = filtered.filter(c => c.group_id === selectedGroupFilter);
       }
     }
     
@@ -72,12 +86,10 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
 
   const toggleAll = () => {
     if (selectedContactIds.size === filteredContacts.length && filteredContacts.length > 0) {
-      // Deselect all filtered
       const newSelected = new Set(selectedContactIds);
       filteredContacts.forEach(c => newSelected.delete(c.id));
       setSelectedContactIds(newSelected);
     } else {
-      // Select all filtered
       const newSelected = new Set(selectedContactIds);
       filteredContacts.forEach(c => newSelected.add(c.id));
       setSelectedContactIds(newSelected);
@@ -86,10 +98,40 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
 
   const selectGroupOnly = (groupId: string) => {
     const groupContacts = contacts.filter(c => 
-      groupId === 'none' ? !c.groupId : c.groupId === groupId
+      groupId === 'none' ? !c.group_id : c.group_id === groupId
     );
     setSelectedContactIds(new Set(groupContacts.map(c => c.id)));
     setSelectedGroupFilter(groupId);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileType = file.type.split('/')[0];
+    if (!['image', 'video', 'audio'].includes(fileType)) {
+      toast({
+        title: "Tipo de arquivo inválido",
+        description: "Selecione uma imagem, vídeo ou áudio",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setMediaFile(file);
+    setMediaType(fileType as 'image' | 'video' | 'audio');
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => setMediaPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const clearMedia = () => {
+    setMediaFile(null);
+    setMediaPreview(null);
+    setMediaType(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const sendViaWebhook = async (campaign: Campaign) => {
@@ -103,17 +145,17 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     }
 
     setIsSending(true);
-    campaign.status = 'running';
-    updateCampaign(campaign);
+    await updateCampaign(campaign.id, { status: 'running' });
 
-    for (const cc of campaign.contacts) {
+    const campaignContacts = await getCampaignContacts(campaign.id);
+
+    for (const cc of campaignContacts) {
       if (cc.status !== 'pending') continue;
 
       try {
-        // Update status to sending
-        updateCampaignContactStatus(campaign.id, cc.contactId, 'sending');
+        await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sending');
 
-        const response = await fetch(webhookUrl, {
+        await fetch(webhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -121,37 +163,30 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           mode: 'no-cors',
           body: JSON.stringify({
             campaignId: campaign.id,
-            contactId: cc.contactId,
-            phone: cc.contact.phone,
-            name: cc.contact.name,
+            contactId: cc.contact_id,
+            phone: cc.contact?.phone,
+            name: cc.contact?.name,
             message: campaign.message,
+            mediaUrl: campaign.media_url,
+            mediaType: campaign.media_type,
             timestamp: new Date().toISOString(),
           }),
         });
 
-        // Since we use no-cors, we assume success
-        updateCampaignContactStatus(campaign.id, cc.contactId, 'sent');
-
-        // Small delay between messages
+        await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent');
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
         console.error('Error sending message:', error);
-        updateCampaignContactStatus(
+        await updateCampaignContactStatus(
           campaign.id, 
-          cc.contactId, 
+          cc.contact_id, 
           'failed',
           error instanceof Error ? error.message : 'Erro desconhecido'
         );
       }
     }
 
-    // Update final campaign status
-    const updatedCampaign = getCampaigns().find(c => c.id === campaign.id);
-    if (updatedCampaign && updatedCampaign.stats.pending === 0) {
-      updatedCampaign.status = 'completed';
-      updatedCampaign.completedAt = new Date();
-      updateCampaign(updatedCampaign);
-    }
+    await updateCampaign(campaign.id, { status: 'completed', completed_at: new Date().toISOString() });
 
     setIsSending(false);
     toast({
@@ -161,7 +196,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     onCampaignCreated();
   };
 
-  const handleCreateCampaign = useCallback(() => {
+  const handleCreateCampaign = useCallback(async () => {
     if (!campaignName.trim()) {
       toast({
         title: "Nome obrigatório",
@@ -189,25 +224,82 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       return;
     }
 
-    const campaign = createCampaign(
+    if (isScheduled && (!scheduledDate || !scheduledTime)) {
+      toast({
+        title: "Data e hora obrigatórias",
+        description: "Informe a data e hora do agendamento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSending(true);
+
+    // Upload media if exists
+    let mediaUrl: string | undefined;
+    if (mediaFile) {
+      setUploadingMedia(true);
+      const { url, error } = await uploadCampaignMedia(mediaFile);
+      setUploadingMedia(false);
+      if (error || !url) {
+        toast({
+          title: "Erro no upload",
+          description: "Não foi possível enviar a mídia",
+          variant: "destructive",
+        });
+        setIsSending(false);
+        return;
+      }
+      mediaUrl = url;
+    }
+
+    const scheduledAt = isScheduled ? new Date(`${scheduledDate}T${scheduledTime}`).toISOString() : undefined;
+
+    const { campaign, error } = await createCampaign(
       campaignName,
       message,
-      Array.from(selectedContactIds)
+      Array.from(selectedContactIds),
+      {
+        scheduled_at: scheduledAt,
+        media_url: mediaUrl,
+        media_type: mediaType || undefined,
+      }
     );
 
+    if (error || !campaign) {
+      toast({
+        title: "Erro ao criar campanha",
+        description: error?.message || "Tente novamente",
+        variant: "destructive",
+      });
+      setIsSending(false);
+      return;
+    }
+
     toast({
-      title: "Campanha criada",
-      description: `Campanha "${campaignName}" criada com ${selectedContactIds.size} contatos`,
+      title: isScheduled ? "Campanha agendada" : "Campanha criada",
+      description: isScheduled 
+        ? `Campanha "${campaignName}" agendada para ${scheduledDate} às ${scheduledTime}`
+        : `Campanha "${campaignName}" criada com ${selectedContactIds.size} contatos`,
     });
 
-    // Start sending
-    sendViaWebhook(campaign);
+    // Only start sending if not scheduled
+    if (!isScheduled) {
+      await sendViaWebhook(campaign as Campaign);
+    } else {
+      setIsSending(false);
+      onCampaignCreated();
+    }
 
     // Reset form
     setCampaignName('');
     setMessage('');
     setSelectedContactIds(new Set());
-  }, [campaignName, message, selectedContactIds, webhookUrl, toast, onCampaignCreated]);
+    setIsScheduled(false);
+    setScheduledDate('');
+    setScheduledTime('');
+    clearMedia();
+  }, [campaignName, message, selectedContactIds, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus]);
 
   const filteredSelectedCount = filteredContacts.filter(c => selectedContactIds.has(c.id)).length;
 
@@ -293,11 +385,117 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
             </div>
           </div>
 
+          {/* Media Upload */}
+          <div className="rounded-xl border bg-card p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Anexar Mídia (opcional)</Label>
+                {mediaFile && (
+                  <Button variant="ghost" size="sm" onClick={clearMedia}>
+                    <X className="mr-1 h-4 w-4" />
+                    Remover
+                  </Button>
+                )}
+              </div>
+              
+              {!mediaFile ? (
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*,audio/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Selecionar arquivo
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-lg border bg-accent/30 p-4">
+                  <div className="flex items-center gap-3">
+                    {mediaType === 'image' && <Image className="h-8 w-8 text-primary" />}
+                    {mediaType === 'video' && <Video className="h-8 w-8 text-primary" />}
+                    {mediaType === 'audio' && <Music className="h-8 w-8 text-primary" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">{mediaFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(mediaFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  {mediaPreview && mediaType === 'image' && (
+                    <img src={mediaPreview} alt="Preview" className="mt-3 max-h-32 rounded-lg object-cover" />
+                  )}
+                  {mediaPreview && mediaType === 'video' && (
+                    <video src={mediaPreview} controls className="mt-3 max-h-32 rounded-lg" />
+                  )}
+                  {mediaPreview && mediaType === 'audio' && (
+                    <audio src={mediaPreview} controls className="mt-3 w-full" />
+                  )}
+                </div>
+              )}
+              
+              <p className="text-xs text-muted-foreground">
+                Formatos suportados: imagens, vídeos e áudios
+              </p>
+            </div>
+          </div>
+
+          {/* Scheduling */}
+          <div className="rounded-xl border bg-card p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="schedule-toggle">Agendar envio</Label>
+                  <p className="text-xs text-muted-foreground">Enviar em uma data e hora específica</p>
+                </div>
+                <Switch
+                  id="schedule-toggle"
+                  checked={isScheduled}
+                  onCheckedChange={setIsScheduled}
+                />
+              </div>
+              
+              {isScheduled && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="scheduled-date">Data</Label>
+                    <Input
+                      id="scheduled-date"
+                      type="date"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="scheduled-time">Hora</Label>
+                    <Input
+                      id="scheduled-time"
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Preview */}
           {message && (
             <div className="rounded-xl border bg-card p-6 shadow-sm">
               <h3 className="font-medium text-foreground">Prévia da Mensagem</h3>
               <div className="mt-4 rounded-lg bg-accent p-4">
+                {mediaPreview && mediaType === 'image' && (
+                  <img src={mediaPreview} alt="Preview" className="mb-3 max-h-32 rounded-lg object-cover" />
+                )}
                 <p className="whitespace-pre-wrap text-sm text-accent-foreground">
                   {message.replace('{nome}', 'João')}
                 </p>
@@ -310,12 +508,17 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
             size="xl"
             className="w-full"
             onClick={handleCreateCampaign}
-            disabled={isSending || !webhookUrl}
+            disabled={isSending || uploadingMedia || !webhookUrl}
           >
-            {isSending ? (
+            {isSending || uploadingMedia ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Enviando...
+                {uploadingMedia ? 'Enviando mídia...' : 'Enviando...'}
+              </>
+            ) : isScheduled ? (
+              <>
+                <Calendar className="mr-2 h-5 w-5" />
+                Agendar Campanha ({selectedContactIds.size} contatos)
               </>
             ) : (
               <>
@@ -393,7 +596,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
               {groups.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {groups.map((group) => {
-                    const groupCount = contacts.filter(c => c.groupId === group.id).length;
+                    const groupCount = contacts.filter(c => c.group_id === group.id).length;
                     return (
                       <button
                         key={group.id}
@@ -432,7 +635,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
             ) : (
               <div className="divide-y">
                 {filteredContacts.map((contact) => {
-                  const group = getGroupById(contact.groupId);
+                  const group = getGroupById(contact.group_id);
                   return (
                     <label
                       key={contact.id}

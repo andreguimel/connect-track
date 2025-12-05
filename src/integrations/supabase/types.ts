@@ -61,8 +61,11 @@ export type Database = {
           completed_at: string | null
           created_at: string
           id: string
+          media_type: string | null
+          media_url: string | null
           message: string
           name: string
+          scheduled_at: string | null
           stats: Json
           status: string
           user_id: string
@@ -71,8 +74,11 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message: string
           name: string
+          scheduled_at?: string | null
           stats?: Json
           status?: string
           user_id: string
@@ -81,8 +87,11 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message?: string
           name?: string
+          scheduled_at?: string | null
           stats?: Json
           status?: string
           user_id?: string

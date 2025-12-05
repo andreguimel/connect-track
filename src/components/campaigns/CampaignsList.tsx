@@ -1,8 +1,7 @@
-import { useState, useMemo } from 'react';
-import { MessageSquare, Play, Pause, Trash2, Eye, Clock, CheckCircle, XCircle, Send } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MessageSquare, Play, Pause, Trash2, Eye, Clock, CheckCircle, XCircle, Send, Calendar, Image, Video, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Campaign } from '@/types/contact';
-import { getCampaigns, deleteCampaign, updateCampaign } from '@/lib/storage';
+import { useCampaigns, Campaign, CampaignContact } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,6 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface CampaignsListProps {
   onStartCampaign: (campaign: Campaign) => void;
@@ -27,26 +28,29 @@ interface CampaignsListProps {
 
 export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
   const { toast } = useToast();
-  const [campaigns, setCampaigns] = useState<Campaign[]>(getCampaigns());
+  const { campaigns, loading, deleteCampaign, updateCampaign, getCampaignContacts } = useCampaigns();
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [campaignContacts, setCampaignContacts] = useState<CampaignContact[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
 
-  const refreshCampaigns = () => {
-    setCampaigns(getCampaigns());
+  const handleViewCampaign = async (campaign: Campaign) => {
+    setSelectedCampaign(campaign);
+    setLoadingContacts(true);
+    const contacts = await getCampaignContacts(campaign.id);
+    setCampaignContacts(contacts as CampaignContact[]);
+    setLoadingContacts(false);
   };
 
-  const handleDelete = (id: string) => {
-    deleteCampaign(id);
-    refreshCampaigns();
+  const handleDelete = async (id: string) => {
+    await deleteCampaign(id);
     toast({
       title: "Campanha removida",
       description: "A campanha foi removida com sucesso",
     });
   };
 
-  const handlePause = (campaign: Campaign) => {
-    campaign.status = 'paused';
-    updateCampaign(campaign);
-    refreshCampaigns();
+  const handlePause = async (campaign: Campaign) => {
+    await updateCampaign(campaign.id, { status: 'paused' });
     toast({
       title: "Campanha pausada",
       description: "A campanha foi pausada com sucesso",
@@ -55,15 +59,29 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
 
   const handleResume = (campaign: Campaign) => {
     onStartCampaign(campaign);
-    refreshCampaigns();
   };
 
   const statusConfig = {
     draft: { label: 'Rascunho', variant: 'secondary' as const, icon: Clock },
+    scheduled: { label: 'Agendada', variant: 'outline' as const, icon: Calendar },
     running: { label: 'Em execução', variant: 'default' as const, icon: Play },
     paused: { label: 'Pausada', variant: 'outline' as const, icon: Pause },
     completed: { label: 'Concluída', variant: 'default' as const, icon: CheckCircle },
   };
+
+  const mediaIcons = {
+    image: Image,
+    video: Video,
+    audio: Music,
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -92,6 +110,7 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
             {campaigns.map((campaign) => {
               const config = statusConfig[campaign.status];
               const StatusIcon = config.icon;
+              const MediaIcon = campaign.media_type ? mediaIcons[campaign.media_type] : null;
               const progress = campaign.stats.total > 0
                 ? Math.round(((campaign.stats.sent + campaign.stats.delivered) / campaign.stats.total) * 100)
                 : 0;
@@ -100,7 +119,7 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
                 <div key={campaign.id} className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="font-display text-lg font-semibold text-foreground">
                           {campaign.name}
                         </h3>
@@ -108,11 +127,24 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
                           <StatusIcon className="h-3 w-3" />
                           {config.label}
                         </Badge>
+                        {MediaIcon && (
+                          <Badge variant="outline" className="gap-1">
+                            <MediaIcon className="h-3 w-3" />
+                            {campaign.media_type === 'image' ? 'Imagem' : campaign.media_type === 'video' ? 'Vídeo' : 'Áudio'}
+                          </Badge>
+                        )}
                       </div>
                       
                       <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                         {campaign.message}
                       </p>
+
+                      {campaign.scheduled_at && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-info">
+                          <Calendar className="h-4 w-4" />
+                          Agendada para: {format(new Date(campaign.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </div>
+                      )}
 
                       <div className="mt-4 flex flex-wrap gap-4 text-sm">
                         <div className="flex items-center gap-2">
@@ -152,12 +184,12 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => setSelectedCampaign(campaign)}
+                        onClick={() => handleViewCampaign(campaign)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       
-                      {campaign.status === 'draft' && (
+                      {(campaign.status === 'draft' || campaign.status === 'scheduled') && (
                         <Button
                           variant="default"
                           size="icon"
@@ -216,6 +248,22 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
           
           {selectedCampaign && (
             <div className="space-y-6">
+              {/* Media Preview */}
+              {selectedCampaign.media_url && (
+                <div className="rounded-lg border bg-accent/30 p-4">
+                  <p className="text-sm font-medium text-foreground mb-2">Mídia anexada:</p>
+                  {selectedCampaign.media_type === 'image' && (
+                    <img src={selectedCampaign.media_url} alt="Mídia da campanha" className="max-h-48 rounded-lg object-cover" />
+                  )}
+                  {selectedCampaign.media_type === 'video' && (
+                    <video src={selectedCampaign.media_url} controls className="max-h-48 rounded-lg" />
+                  )}
+                  {selectedCampaign.media_type === 'audio' && (
+                    <audio src={selectedCampaign.media_url} controls className="w-full" />
+                  )}
+                </div>
+              )}
+
               {/* Message Preview */}
               <div className="rounded-lg border bg-accent/30 p-4">
                 <p className="text-sm font-medium text-foreground">Mensagem:</p>
@@ -225,30 +273,36 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
               </div>
 
               {/* Contacts Status Table */}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Telefone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Enviado em</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedCampaign.contacts.map((cc) => (
-                    <TableRow key={cc.contactId}>
-                      <TableCell className="font-medium">{cc.contact.name}</TableCell>
-                      <TableCell className="font-mono text-sm">{cc.contact.phone}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={cc.status} error={cc.error} />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {cc.sentAt ? cc.sentAt.toLocaleString('pt-BR') : '-'}
-                      </TableCell>
+              {loadingContacts ? (
+                <div className="flex justify-center py-8">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Enviado em</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {campaignContacts.map((cc) => (
+                      <TableRow key={cc.id}>
+                        <TableCell className="font-medium">{cc.contact?.name || '-'}</TableCell>
+                        <TableCell className="font-mono text-sm">{cc.contact?.phone || '-'}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={cc.status} error={cc.error} />
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {cc.sent_at ? format(new Date(cc.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           )}
         </DialogContent>
