@@ -44,11 +44,7 @@ export function useEvolutionInstances() {
     fetchInstances();
   }, [fetchInstances]);
 
-  const createInstance = async (data: {
-    name: string;
-    api_url: string;
-    api_key: string;
-  }) => {
+  const createInstance = async (name?: string) => {
     if (!user) return null;
 
     // Check if user already has 3 instances
@@ -61,15 +57,15 @@ export function useEvolutionInstances() {
       return null;
     }
 
-    const instanceName = `${data.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`;
+    // Auto-generate name if not provided
+    const displayName = name || `WhatsApp ${instances.length + 1}`;
+    const instanceName = `whatsapp_${user.id.slice(0, 8)}_${Date.now()}`;
 
     try {
-      // Create instance in Evolution API
+      // Create instance in Evolution API (uses default env vars)
       const { data: apiResponse, error: apiError } = await supabase.functions.invoke('evolution-api', {
         body: {
           action: 'create',
-          apiUrl: data.api_url,
-          apiKey: data.api_key,
           instanceName,
         },
       });
@@ -77,14 +73,14 @@ export function useEvolutionInstances() {
       if (apiError) throw apiError;
       if (!apiResponse.success) throw new Error(apiResponse.error);
 
-      // Save instance to database
+      // Save instance to database with placeholder values (actual API uses env vars)
       const { data: instance, error: dbError } = await supabase
         .from('evolution_instances')
         .insert({
           user_id: user.id,
-          name: data.name,
-          api_url: data.api_url,
-          api_key: data.api_key,
+          name: displayName,
+          api_url: 'default',
+          api_key: 'default',
           instance_name: instanceName,
           status: 'disconnected',
         })
@@ -121,8 +117,6 @@ export function useEvolutionInstances() {
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
           action: 'connect',
-          apiUrl: instance.api_url,
-          apiKey: instance.api_key,
           instanceName: instance.instance_name,
           instanceId: instance.id,
         },
@@ -149,8 +143,6 @@ export function useEvolutionInstances() {
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
           action: 'status',
-          apiUrl: instance.api_url,
-          apiKey: instance.api_key,
           instanceName: instance.instance_name,
           instanceId: instance.id,
         },
@@ -171,8 +163,6 @@ export function useEvolutionInstances() {
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
           action: 'disconnect',
-          apiUrl: instance.api_url,
-          apiKey: instance.api_key,
           instanceName: instance.instance_name,
           instanceId: instance.id,
         },
@@ -202,8 +192,6 @@ export function useEvolutionInstances() {
       await supabase.functions.invoke('evolution-api', {
         body: {
           action: 'delete',
-          apiUrl: instance.api_url,
-          apiKey: instance.api_key,
           instanceName: instance.instance_name,
         },
       });
