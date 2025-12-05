@@ -46,7 +46,6 @@ export function EvolutionInstances() {
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   
   const [newInstance, setNewInstance] = useState({
-    name: '',
     api_url: '',
     api_key: '',
   });
@@ -85,34 +84,47 @@ export function EvolutionInstances() {
   }, [showQRDialog, selectedInstance, checkStatus, toast]);
 
   const handleCreate = async () => {
-    if (!newInstance.name || !newInstance.api_url || !newInstance.api_key) {
+    if (!newInstance.api_url || !newInstance.api_key) {
       toast({
         title: 'Campos obrigatórios',
-        description: 'Preencha todos os campos',
+        description: 'Preencha URL e API Key',
         variant: 'destructive',
       });
       return;
     }
 
     setIsCreating(true);
-    const result = await createInstance(newInstance);
+    
+    // Auto-generate name based on instance count
+    const instanceNumber = instances.length + 1;
+    const autoName = `WhatsApp ${instanceNumber}`;
+    
+    const result = await createInstance({
+      name: autoName,
+      api_url: newInstance.api_url,
+      api_key: newInstance.api_key,
+    });
+    
     setIsCreating(false);
 
     if (result) {
       setShowAddDialog(false);
-      setNewInstance({ name: '', api_url: '', api_key: '' });
+      setNewInstance({ api_url: '', api_key: '' });
       
-      // Show QR code if available
+      // Show QR code immediately
       if (result.qrcode?.base64) {
         setSelectedInstance(result.instance);
         setQrCode(result.qrcode.base64);
         setShowQRDialog(true);
+      } else {
+        // If no QR in create response, fetch it
+        setSelectedInstance(result.instance);
+        setShowQRDialog(true);
+        setIsLoadingQR(true);
+        const qr = await getQRCode(result.instance);
+        setIsLoadingQR(false);
+        if (qr) setQrCode(qr);
       }
-      
-      toast({
-        title: 'Instância criada',
-        description: 'Escaneie o QR Code para conectar.',
-      });
     }
   };
 
@@ -286,23 +298,13 @@ export function EvolutionInstances() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova Conexão WhatsApp</DialogTitle>
+            <DialogTitle>Conectar WhatsApp</DialogTitle>
             <DialogDescription>
-              Configure uma nova instância da Evolution API
+              Informe os dados da sua Evolution API para gerar o QR Code
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-name">Nome da Conexão</Label>
-              <Input
-                id="new-name"
-                value={newInstance.name}
-                onChange={(e) => setNewInstance(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Meu WhatsApp Principal"
-              />
-            </div>
-            
             <div className="space-y-2">
               <Label htmlFor="new-url">URL da Evolution API</Label>
               <Input
@@ -312,10 +314,11 @@ export function EvolutionInstances() {
                 placeholder="https://sua-evolution.com"
                 className="font-mono text-sm"
               />
+              <p className="text-xs text-muted-foreground">Endereço da sua Evolution API</p>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="new-key">API Key</Label>
+              <Label htmlFor="new-key">API Key (Global)</Label>
               <Input
                 id="new-key"
                 type="password"
@@ -324,6 +327,7 @@ export function EvolutionInstances() {
                 placeholder="sua-api-key"
                 className="font-mono text-sm"
               />
+              <p className="text-xs text-muted-foreground">Chave de API nas configurações da Evolution</p>
             </div>
           </div>
           
@@ -335,12 +339,12 @@ export function EvolutionInstances() {
               {isCreating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando...
+                  Gerando QR Code...
                 </>
               ) : (
                 <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Criar Conexão
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Gerar QR Code
                 </>
               )}
             </Button>
