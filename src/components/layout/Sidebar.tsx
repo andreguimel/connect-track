@@ -6,8 +6,11 @@ import {
   Send, 
   Settings,
   Zap,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
   activeTab: string;
@@ -24,6 +27,8 @@ const menuItems = [
 ];
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+  const { signOut } = useAuth();
+  
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
       <div className="flex h-full flex-col">
@@ -63,13 +68,21 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-4">
+        <div className="border-t border-border p-4 space-y-4">
           <div className="rounded-lg bg-accent/50 p-4">
             <p className="text-xs font-medium text-accent-foreground">Integração n8n</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Configure seu webhook para automação
             </p>
           </div>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-muted-foreground hover:text-destructive"
+            onClick={() => signOut()}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
+          </Button>
         </div>
       </div>
     </aside>
