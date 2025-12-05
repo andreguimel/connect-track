@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -193,27 +194,28 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       try {
         await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sending');
 
-        await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        const { data, error: proxyError } = await supabase.functions.invoke('n8n-proxy', {
+          body: {
+            webhookUrl,
+            payload: {
+              key: evolutionSettings.apiKey,
+              remoteJid: `${cc.contact?.phone}@s.whatsapp.net`,
+              campaignId: campaign.id,
+              contactId: cc.contact_id,
+              phone: cc.contact?.phone,
+              name: cc.contact?.name,
+              message: campaign.message,
+              mediaUrl: campaign.media_url,
+              mediaType: campaign.media_type,
+              timestamp: new Date().toISOString(),
+              evolutionApiUrl: evolutionSettings.apiUrl,
+              evolutionInstance: evolutionSettings.instanceName,
+            },
           },
-          mode: 'no-cors',
-          body: JSON.stringify({
-            key: evolutionSettings.apiKey,
-            remoteJid: `${cc.contact?.phone}@s.whatsapp.net`,
-            campaignId: campaign.id,
-            contactId: cc.contact_id,
-            phone: cc.contact?.phone,
-            name: cc.contact?.name,
-            message: campaign.message,
-            mediaUrl: campaign.media_url,
-            mediaType: campaign.media_type,
-            timestamp: new Date().toISOString(),
-            evolutionApiUrl: evolutionSettings.apiUrl,
-            evolutionInstance: evolutionSettings.instanceName,
-          }),
         });
+
+        if (proxyError) throw proxyError;
+        console.log('Resposta do proxy:', data);
 
         await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent');
         processed++;
