@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Zap, Info, Shield, Clock, AlertTriangle, Send, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Save, Zap, Info, Shield, Clock, AlertTriangle, Send, CheckCircle, XCircle, Loader2, Wifi, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,32 @@ interface SettingsProps {
   onWebhookChange: (url: string) => void;
 }
 
+export interface EvolutionSettings {
+  apiUrl: string;
+  instanceName: string;
+  apiKey: string;
+}
+
+const EVOLUTION_STORAGE_KEY = 'zapsender_evolution_settings';
+
+const defaultEvolutionSettings: EvolutionSettings = {
+  apiUrl: '',
+  instanceName: '',
+  apiKey: '',
+};
+
+export const getEvolutionSettings = (): EvolutionSettings => {
+  const stored = localStorage.getItem(EVOLUTION_STORAGE_KEY);
+  if (stored) {
+    return JSON.parse(stored);
+  }
+  return defaultEvolutionSettings;
+};
+
+export const saveEvolutionSettings = (settings: EvolutionSettings) => {
+  localStorage.setItem(EVOLUTION_STORAGE_KEY, JSON.stringify(settings));
+};
+
 const N8N_WEBHOOK_URL = 'https://oito.codigopro.tech/webhook/70343adc-43eb-4015-9571-d382c00bb03b';
 
 export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
@@ -31,12 +57,34 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
   const [testMessage, setTestMessage] = useState('Olá! Esta é uma mensagem de teste do ZapSender.');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+  const [evolutionSettings, setEvolutionSettings] = useState<EvolutionSettings>(getEvolutionSettings);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     if (!webhookUrl) {
       onWebhookChange(N8N_WEBHOOK_URL);
     }
   }, [webhookUrl, onWebhookChange]);
+
+  const handleSaveEvolution = () => {
+    if (!evolutionSettings.apiUrl || !evolutionSettings.instanceName || !evolutionSettings.apiKey) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos da Evolution API",
+        variant: "destructive",
+      });
+      return;
+    }
+    saveEvolutionSettings(evolutionSettings);
+    toast({
+      title: "Conexão salva",
+      description: "Configurações da Evolution API salvas com sucesso",
+    });
+  };
+
+  const updateEvolution = (key: keyof EvolutionSettings, value: string) => {
+    setEvolutionSettings(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleSaveWebhook = () => {
     onWebhookChange(localWebhookUrl);
@@ -162,6 +210,100 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
             className="h-2 rounded-full bg-primary transition-all"
             style={{ width: `${Math.min(100, (dailySent / antiBanSettings.dailyLimit) * 100)}%` }}
           />
+        </div>
+      </div>
+
+      {/* Evolution API Connection */}
+      <div className="rounded-xl border bg-card p-6 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
+            <Wifi className="h-6 w-6 text-success" />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-display text-xl font-semibold text-foreground">
+              Conexão Evolution API
+            </h2>
+            <p className="mt-1 text-muted-foreground">
+              Configure a conexão com sua instância da Evolution API
+            </p>
+          </div>
+          {evolutionSettings.apiUrl && evolutionSettings.instanceName && evolutionSettings.apiKey && (
+            <div className="flex items-center gap-2 rounded-full bg-success/10 px-3 py-1 text-success">
+              <CheckCircle className="h-4 w-4" />
+              <span className="text-sm font-medium">Conectado</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 grid gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="evolution-url">URL da API</Label>
+            <Input
+              id="evolution-url"
+              value={evolutionSettings.apiUrl}
+              onChange={(e) => updateEvolution('apiUrl', e.target.value)}
+              placeholder="https://sua-evolution-api.com"
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">URL base da sua instância Evolution API</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="evolution-instance">Nome da Instância</Label>
+            <Input
+              id="evolution-instance"
+              value={evolutionSettings.instanceName}
+              onChange={(e) => updateEvolution('instanceName', e.target.value)}
+              placeholder="minha-instancia"
+            />
+            <p className="text-xs text-muted-foreground">Nome da instância configurada na Evolution</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="evolution-apikey">API Key</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="evolution-apikey"
+                  type={showApiKey ? 'text' : 'password'}
+                  value={evolutionSettings.apiKey}
+                  onChange={(e) => updateEvolution('apiKey', e.target.value)}
+                  placeholder="sua-api-key-evolution"
+                  className="font-mono text-sm pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                >
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Chave de API da Evolution (Global API Key)</p>
+          </div>
+        </div>
+
+        <Button onClick={handleSaveEvolution} className="mt-6">
+          <Save className="mr-2 h-4 w-4" />
+          Salvar Conexão
+        </Button>
+
+        {/* Info Box */}
+        <div className="mt-4 rounded-lg border border-info/20 bg-info/5 p-4">
+          <div className="flex gap-3">
+            <Info className="h-5 w-5 shrink-0 text-info" />
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium text-info">Onde encontrar essas informações:</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4">
+                <li><strong>URL da API:</strong> Endereço onde sua Evolution está hospedada</li>
+                <li><strong>Instância:</strong> Nome da instância conectada ao WhatsApp</li>
+                <li><strong>API Key:</strong> Chave global nas configurações da Evolution</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 
