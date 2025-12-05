@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   AntiBanSettings, 
   defaultAntiBanSettings, 
@@ -90,22 +91,28 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
         isTest: true,
       };
 
-      console.log('Enviando mensagem de teste:', payload);
+      console.log('Enviando mensagem de teste via proxy:', payload);
 
-      await fetch(localWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors',
-        body: JSON.stringify(payload),
+      const { data, error } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          webhookUrl: localWebhookUrl,
+          payload,
+        },
       });
 
-      // Com mode: 'no-cors', não conseguimos ver a resposta real
-      // Mas se não houver erro de rede, consideramos como enviado
-      setTestResult('success');
-      toast({
-        title: "Teste enviado!",
-        description: "Verifique o n8n e o WhatsApp para confirmar a entrega",
-      });
+      if (error) throw error;
+
+      console.log('Resposta do proxy:', data);
+
+      if (data.success) {
+        setTestResult('success');
+        toast({
+          title: "Teste enviado com sucesso!",
+          description: `n8n respondeu com status ${data.status}`,
+        });
+      } else {
+        throw new Error(data.error || `n8n retornou status ${data.status}`);
+      }
     } catch (error) {
       console.error('Erro no teste:', error);
       setTestResult('error');
