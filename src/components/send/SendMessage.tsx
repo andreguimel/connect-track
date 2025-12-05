@@ -146,7 +146,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   };
 
   const getEvolutionSettings = () => {
-    const saved = localStorage.getItem('evolution_settings');
+    const saved = localStorage.getItem('zapsender_evolution_settings');
     if (saved) {
       try {
         return JSON.parse(saved);
