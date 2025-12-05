@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { MessageSquare, Play, Pause, Trash2, Eye, Clock, CheckCircle, XCircle, Send, Calendar, Image, Video, Music } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, Play, Pause, Trash2, Eye, Clock, CheckCircle, XCircle, Send, Calendar, Image, Video, Music, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCampaigns, Campaign, CampaignContact } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +10,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -21,9 +22,10 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CampaignsListProps {
-  onStartCampaign: (campaign: Campaign) => void;
+  onStartCampaign: (campaign: Campaign, contactFilter?: 'all' | 'failed') => void;
 }
 
 export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
@@ -32,6 +34,8 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [campaignContacts, setCampaignContacts] = useState<CampaignContact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [resendCampaign, setResendCampaign] = useState<Campaign | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const handleViewCampaign = async (campaign: Campaign) => {
     setSelectedCampaign(campaign);
@@ -59,6 +63,69 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
 
   const handleResume = (campaign: Campaign) => {
     onStartCampaign(campaign);
+  };
+
+  const handleResend = async (campaign: Campaign, filter: 'all' | 'failed') => {
+    setResendLoading(true);
+    try {
+      if (filter === 'all') {
+        // Reset all contacts to pending
+        await supabase
+          .from('campaign_contacts')
+          .update({ status: 'pending', error: null, sent_at: null })
+          .eq('campaign_id', campaign.id);
+      } else {
+        // Reset only failed contacts to pending
+        await supabase
+          .from('campaign_contacts')
+          .update({ status: 'pending', error: null, sent_at: null })
+          .eq('campaign_id', campaign.id)
+          .eq('status', 'failed');
+      }
+
+      // Get updated contact count
+      const { count: totalCount } = await supabase
+        .from('campaign_contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id)
+        .eq('status', 'pending');
+
+      // Update campaign stats and status
+      const newStats = {
+        ...campaign.stats,
+        pending: totalCount || 0,
+        sent: filter === 'all' ? 0 : campaign.stats.sent,
+        delivered: filter === 'all' ? 0 : campaign.stats.delivered,
+        failed: filter === 'all' ? 0 : 0,
+      };
+
+      await updateCampaign(campaign.id, { 
+        status: 'draft',
+        stats: newStats,
+        completed_at: null
+      });
+
+      setResendCampaign(null);
+      
+      toast({
+        title: "Campanha preparada para reenvio",
+        description: filter === 'all' 
+          ? "Todos os contatos foram resetados. Clique em Iniciar para enviar."
+          : "Contatos com falha foram resetados. Clique em Iniciar para reenviar.",
+      });
+
+      // Start the campaign
+      onStartCampaign({ ...campaign, status: 'draft', stats: newStats }, filter);
+    } catch (error) {
+      console.error('Error preparing resend:', error);
+      toast({
+        title: "Erro ao preparar reenvio",
+        description: "Não foi possível preparar a campanha para reenvio",
+        variant: "destructive",
+      });
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const statusConfig = {
@@ -218,6 +285,17 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
                           <Play className="h-4 w-4" />
                         </Button>
                       )}
+
+                      {campaign.status === 'completed' && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setResendCampaign(campaign)}
+                          title="Reenviar campanha"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
                       
                       <Button
                         variant="ghost"
@@ -305,6 +383,66 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Resend Dialog */}
+      <Dialog open={!!resendCampaign} onOpenChange={() => setResendCampaign(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reenviar Campanha</DialogTitle>
+            <DialogDescription>
+              Escolha para quais contatos deseja reenviar a campanha "{resendCampaign?.name}"
+            </DialogDescription>
+          </DialogHeader>
+          
+          {resendCampaign && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4 text-center text-sm">
+                <div className="rounded-lg border bg-accent/30 p-3">
+                  <p className="text-2xl font-bold text-foreground">{resendCampaign.stats.total}</p>
+                  <p className="text-muted-foreground">Total</p>
+                </div>
+                <div className="rounded-lg border bg-destructive/10 p-3">
+                  <p className="text-2xl font-bold text-destructive">{resendCampaign.stats.failed}</p>
+                  <p className="text-muted-foreground">Falhas</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setResendCampaign(null)}
+              disabled={resendLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => resendCampaign && handleResend(resendCampaign, 'failed')}
+              disabled={resendLoading || !resendCampaign?.stats.failed}
+            >
+              {resendLoading ? (
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <XCircle className="h-4 w-4 mr-2" />
+              )}
+              Apenas Falhas ({resendCampaign?.stats.failed || 0})
+            </Button>
+            <Button
+              onClick={() => resendCampaign && handleResend(resendCampaign, 'all')}
+              disabled={resendLoading}
+            >
+              {resendLoading ? (
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Todos ({resendCampaign?.stats.total || 0})
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

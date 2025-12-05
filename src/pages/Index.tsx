@@ -36,7 +36,7 @@ const Index = () => {
     localStorage.setItem(WEBHOOK_STORAGE_KEY, url);
   };
 
-  const handleStartCampaign = useCallback(async (campaign: Campaign) => {
+  const handleStartCampaign = useCallback(async (campaign: Campaign, contactFilter?: 'all' | 'failed') => {
     if (!webhookUrl) {
       toast({
         title: "Webhook não configurado",
