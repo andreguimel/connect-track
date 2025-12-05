@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, X } from 'lucide-react';
+import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useEvolutionInstances, EvolutionInstance } from '@/hooks/useEvolutionInstances';
 import {
@@ -36,7 +34,6 @@ export function EvolutionInstances() {
     deleteInstance 
   } = useEvolutionInstances();
   
-  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<EvolutionInstance | null>(null);
   const [selectedInstance, setSelectedInstance] = useState<EvolutionInstance | null>(null);
@@ -45,11 +42,6 @@ export function EvolutionInstances() {
   const [isLoadingQR, setIsLoadingQR] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   
-  const [newInstance, setNewInstance] = useState({
-    api_url: '',
-    api_key: '',
-  });
-
   // Auto-refresh status for connecting instances
   useEffect(() => {
     const connectingInstances = instances.filter(i => i.status === 'connecting');
@@ -84,33 +76,13 @@ export function EvolutionInstances() {
   }, [showQRDialog, selectedInstance, checkStatus, toast]);
 
   const handleCreate = async () => {
-    if (!newInstance.api_url || !newInstance.api_key) {
-      toast({
-        title: 'Campos obrigatórios',
-        description: 'Preencha URL e API Key',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsCreating(true);
     
-    // Auto-generate name based on instance count
-    const instanceNumber = instances.length + 1;
-    const autoName = `WhatsApp ${instanceNumber}`;
-    
-    const result = await createInstance({
-      name: autoName,
-      api_url: newInstance.api_url,
-      api_key: newInstance.api_key,
-    });
+    const result = await createInstance();
     
     setIsCreating(false);
 
     if (result) {
-      setShowAddDialog(false);
-      setNewInstance({ api_url: '', api_key: '' });
-      
       // Show QR code immediately
       if (result.qrcode?.base64) {
         setSelectedInstance(result.instance);
@@ -197,12 +169,21 @@ export function EvolutionInstances() {
           </p>
         </div>
         <Button 
-          onClick={() => setShowAddDialog(true)} 
-          disabled={instances.length >= 3}
+          onClick={handleCreate} 
+          disabled={instances.length >= 3 || isCreating}
           size="sm"
         >
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Conexão
+          {isCreating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Conectando...
+            </>
+          ) : (
+            <>
+              <QrCode className="mr-2 h-4 w-4" />
+              Conectar WhatsApp
+            </>
+          )}
         </Button>
       </div>
 
@@ -215,12 +196,22 @@ export function EvolutionInstances() {
             Adicione uma conexão para enviar mensagens
           </p>
           <Button 
-            onClick={() => setShowAddDialog(true)} 
+            onClick={handleCreate} 
             className="mt-4"
             variant="outline"
+            disabled={isCreating}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Conexão
+            {isCreating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Conectando...
+              </>
+            ) : (
+              <>
+                <QrCode className="mr-2 h-4 w-4" />
+                Conectar WhatsApp
+              </>
+            )}
           </Button>
         </div>
       ) : (
@@ -293,64 +284,6 @@ export function EvolutionInstances() {
           ))}
         </div>
       )}
-
-      {/* Add Instance Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Conectar WhatsApp</DialogTitle>
-            <DialogDescription>
-              Informe os dados da sua Evolution API para gerar o QR Code
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-url">URL da Evolution API</Label>
-              <Input
-                id="new-url"
-                value={newInstance.api_url}
-                onChange={(e) => setNewInstance(prev => ({ ...prev, api_url: e.target.value }))}
-                placeholder="https://sua-evolution.com"
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">Endereço da sua Evolution API</p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="new-key">API Key (Global)</Label>
-              <Input
-                id="new-key"
-                type="password"
-                value={newInstance.api_key}
-                onChange={(e) => setNewInstance(prev => ({ ...prev, api_key: e.target.value }))}
-                placeholder="sua-api-key"
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">Chave de API nas configurações da Evolution</p>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreate} disabled={isCreating}>
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Gerando QR Code...
-                </>
-              ) : (
-                <>
-                  <QrCode className="mr-2 h-4 w-4" />
-                  Gerar QR Code
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* QR Code Dialog */}
       <Dialog open={showQRDialog} onOpenChange={(open) => {
