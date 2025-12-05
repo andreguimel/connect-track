@@ -1,6 +1,7 @@
 import { Users, Send, CheckCircle, XCircle, Clock, MessageSquare, Activity } from 'lucide-react';
 import { StatsCard } from './StatsCard';
 import { RealtimeMetrics } from './RealtimeMetrics';
+import { ExportReports } from './ExportReports';
 import { useContacts, useCampaigns, Campaign } from '@/hooks/useData';
 import { useMemo, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,9 +52,12 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">Visão geral das suas campanhas de WhatsApp</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="mt-1 text-muted-foreground">Visão geral das suas campanhas de WhatsApp</p>
+        </div>
+        <ExportReports />
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
