@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Zap, Info, Shield, Clock, AlertTriangle } from 'lucide-react';
+import { Save, Zap, Info, Shield, Clock, AlertTriangle, Send, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,10 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
   const [localWebhookUrl, setLocalWebhookUrl] = useState(webhookUrl || N8N_WEBHOOK_URL);
   const [antiBanSettings, setAntiBanSettings] = useState<AntiBanSettings>(getAntiBanSettings);
   const [dailySent, setDailySent] = useState(getDailySentCount);
+  const [testPhone, setTestPhone] = useState('');
+  const [testMessage, setTestMessage] = useState('Olá! Esta é uma mensagem de teste do ZapSender.');
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
     if (!webhookUrl) {
@@ -51,6 +55,68 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
 
   const updateAntiBan = (key: keyof AntiBanSettings, value: number | boolean) => {
     setAntiBanSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleTestMessage = async () => {
+    if (!testPhone) {
+      toast({
+        title: "Número obrigatório",
+        description: "Digite o número de telefone para teste",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!localWebhookUrl) {
+      toast({
+        title: "Webhook não configurado",
+        description: "Configure o URL do webhook primeiro",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const payload = {
+        campaignId: 'test-' + Date.now(),
+        contactId: 'test-contact',
+        phone: testPhone.replace(/\D/g, ''),
+        name: 'Teste',
+        message: testMessage,
+        timestamp: new Date().toISOString(),
+        isTest: true,
+      };
+
+      console.log('Enviando mensagem de teste:', payload);
+
+      await fetch(localWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'no-cors',
+        body: JSON.stringify(payload),
+      });
+
+      // Com mode: 'no-cors', não conseguimos ver a resposta real
+      // Mas se não houver erro de rede, consideramos como enviado
+      setTestResult('success');
+      toast({
+        title: "Teste enviado!",
+        description: "Verifique o n8n e o WhatsApp para confirmar a entrega",
+      });
+    } catch (error) {
+      console.error('Erro no teste:', error);
+      setTestResult('error');
+      toast({
+        title: "Erro no teste",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const remaining = getRemainingDaily(antiBanSettings);
@@ -276,6 +342,81 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
             </pre>
           </div>
         </div>
+      </div>
+
+      {/* Test Message */}
+      <div className="rounded-xl border bg-card p-6 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+            <Send className="h-6 w-6 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-display text-xl font-semibold text-foreground">
+              Testar Integração
+            </h2>
+            <p className="mt-1 text-muted-foreground">
+              Envie uma mensagem de teste para validar a conexão
+            </p>
+          </div>
+          {testResult === 'success' && (
+            <div className="flex items-center gap-2 rounded-full bg-success/10 px-3 py-1 text-success">
+              <CheckCircle className="h-4 w-4" />
+              <span className="text-sm font-medium">Enviado</span>
+            </div>
+          )}
+          {testResult === 'error' && (
+            <div className="flex items-center gap-2 rounded-full bg-destructive/10 px-3 py-1 text-destructive">
+              <XCircle className="h-4 w-4" />
+              <span className="text-sm font-medium">Erro</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="test-phone">Número para Teste</Label>
+            <Input
+              id="test-phone"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              placeholder="5511999999999"
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">Inclua código do país (55 para Brasil)</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="test-message">Mensagem de Teste</Label>
+            <Input
+              id="test-message"
+              value={testMessage}
+              onChange={(e) => setTestMessage(e.target.value)}
+              placeholder="Olá! Teste do ZapSender"
+            />
+          </div>
+        </div>
+
+        <Button 
+          onClick={handleTestMessage} 
+          className="mt-4 w-full sm:w-auto"
+          disabled={isTesting || !testPhone}
+        >
+          {isTesting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Enviando...
+            </>
+          ) : (
+            <>
+              <Send className="mr-2 h-4 w-4" />
+              Enviar Mensagem de Teste
+            </>
+          )}
+        </Button>
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          A mensagem será enviada via webhook para o n8n → Evolution API → WhatsApp
+        </p>
       </div>
 
       {/* About */}
