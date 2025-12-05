@@ -5,6 +5,7 @@ import { ContactsManager } from '@/components/contacts/ContactsManager';
 import { CampaignsList } from '@/components/campaigns/CampaignsList';
 import { SendMessage } from '@/components/send/SendMessage';
 import { Settings } from '@/components/settings/Settings';
+import { TemplatesManager } from '@/components/templates/TemplatesManager';
 import { Campaign } from '@/types/contact';
 import { updateCampaign, getCampaigns, updateCampaignContactStatus } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
@@ -167,6 +168,8 @@ const Index = () => {
         return <Dashboard key={refreshKey} />;
       case 'contacts':
         return <ContactsManager />;
+      case 'templates':
+        return <TemplatesManager />;
       case 'campaigns':
         return <CampaignsList key={refreshKey} onStartCampaign={handleStartCampaign} />;
       case 'send':

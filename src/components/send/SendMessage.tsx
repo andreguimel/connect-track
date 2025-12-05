@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Send, Users, MessageSquare, Check, AlertCircle, Loader2, Tag } from 'lucide-react';
+import { Send, Users, MessageSquare, Check, AlertCircle, Loader2, Tag, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Contact, Campaign, ContactGroup } from '@/types/contact';
-import { getContacts, createCampaign, updateCampaign, getCampaigns, updateCampaignContactStatus, getGroups } from '@/lib/storage';
+import { Contact, Campaign, ContactGroup, MessageTemplate } from '@/types/contact';
+import { getContacts, createCampaign, updateCampaign, getCampaigns, updateCampaignContactStatus, getGroups, getTemplates } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -25,12 +25,14 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const { toast } = useToast();
   const [contacts] = useState<Contact[]>(getContacts());
   const [groups] = useState<ContactGroup[]>(getGroups());
+  const [templates] = useState<MessageTemplate[]>(getTemplates());
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [campaignName, setCampaignName] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('none');
 
   const filteredContacts = useMemo(() => {
     let filtered = contacts;
@@ -235,12 +237,52 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                 />
               </div>
 
+              {/* Template Selection */}
+              {templates.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="template-select">Usar Template</Label>
+                  <Select
+                    value={selectedTemplateId}
+                    onValueChange={(value) => {
+                      setSelectedTemplateId(value);
+                      if (value !== 'none') {
+                        const template = templates.find(t => t.id === value);
+                        if (template) {
+                          setMessage(template.content);
+                        }
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="template-select">
+                      <FileText className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="Selecione um template (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Escrever do zero</SelectItem>
+                      {templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          <div className="flex items-center gap-2">
+                            {template.name}
+                            {template.category && (
+                              <span className="text-xs text-muted-foreground">({template.category})</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="message">Mensagem</Label>
                 <Textarea
                   id="message"
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    setSelectedTemplateId('none');
+                  }}
                   placeholder="Digite sua mensagem aqui...&#10;&#10;Use {nome} para personalizar com o nome do contato"
                   className="min-h-[150px]"
                 />
