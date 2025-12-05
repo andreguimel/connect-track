@@ -1,0 +1,4 @@
+project_id = "vjatuupiufxyvprztmke"
+
+[functions.n8n-proxy]
+verify_jwt = false

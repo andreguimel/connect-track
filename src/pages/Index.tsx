@@ -8,6 +8,7 @@ import { Settings } from '@/components/settings/Settings';
 import { Campaign } from '@/types/contact';
 import { updateCampaign, getCampaigns, updateCampaignContactStatus } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   getAntiBanSettings, 
   getRandomDelay, 
@@ -92,19 +93,21 @@ const Index = () => {
           finalMessage = addMessageVariation(finalMessage);
         }
 
-        await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          mode: 'no-cors',
-          body: JSON.stringify({
-            campaignId: campaign.id,
-            contactId: cc.contactId,
-            phone: cc.contact.phone,
-            name: cc.contact.name,
-            message: finalMessage,
-            timestamp: new Date().toISOString(),
-          }),
+        const { error } = await supabase.functions.invoke('n8n-proxy', {
+          body: {
+            webhookUrl,
+            payload: {
+              campaignId: campaign.id,
+              contactId: cc.contactId,
+              phone: cc.contact.phone,
+              name: cc.contact.name,
+              message: finalMessage,
+              timestamp: new Date().toISOString(),
+            },
+          },
         });
+
+        if (error) throw error;
 
         updateCampaignContactStatus(campaign.id, cc.contactId, 'sent');
         incrementDailySentCount();
