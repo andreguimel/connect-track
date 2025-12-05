@@ -8,6 +8,7 @@ import { useTemplates, MessageTemplate } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { WhatsAppPreview } from '@/components/send/WhatsAppPreview';
 import {
   Dialog,
   DialogContent,
@@ -324,15 +325,14 @@ export function TemplatesManager() {
                 )}
               </div>
 
-              {/* Preview */}
+              {/* WhatsApp Preview */}
               {formData.content && (
-                <div className="rounded-lg border bg-accent/30 p-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Prévia:</p>
-                  {(mediaPreview || existingMediaUrl) && (mediaType === 'image' || existingMediaType === 'image') && (
-                    <img src={mediaPreview || existingMediaUrl!} alt="Preview" className="mb-2 max-h-24 rounded-lg object-cover" />
-                  )}
-                  <p className="whitespace-pre-wrap text-sm text-foreground">{formData.content.replace('{nome}', 'João')}</p>
-                </div>
+                <WhatsAppPreview
+                  message={formData.content}
+                  mediaUrl={mediaPreview || existingMediaUrl}
+                  mediaType={mediaType || existingMediaType}
+                  contactName="João"
+                />
               )}
             </div>
             <DialogFooter>

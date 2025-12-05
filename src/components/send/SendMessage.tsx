@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { useContacts, useGroups, useTemplates, useCampaigns, Campaign } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
+import { WhatsAppPreview } from './WhatsAppPreview';
 import {
   Select,
   SelectContent,
@@ -504,19 +505,14 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
             </div>
           </div>
 
-          {/* Preview */}
+          {/* WhatsApp Preview */}
           {message && (
-            <div className="rounded-xl border bg-card p-6 shadow-sm">
-              <h3 className="font-medium text-foreground">Prévia da Mensagem</h3>
-              <div className="mt-4 rounded-lg bg-accent p-4">
-                {mediaPreview && mediaType === 'image' && (
-                  <img src={mediaPreview} alt="Preview" className="mb-3 max-h-32 rounded-lg object-cover" />
-                )}
-                <p className="whitespace-pre-wrap text-sm text-accent-foreground">
-                  {message.replace('{nome}', 'João')}
-                </p>
-              </div>
-            </div>
+            <WhatsAppPreview
+              message={message}
+              mediaUrl={mediaPreview}
+              mediaType={mediaType}
+              contactName="João"
+            />
           )}
 
           {/* Send Button */}
