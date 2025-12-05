@@ -1,8 +1,10 @@
-import { Users, Send, CheckCircle, XCircle, Clock, MessageSquare } from 'lucide-react';
+import { Users, Send, CheckCircle, XCircle, Clock, MessageSquare, Activity } from 'lucide-react';
 import { StatsCard } from './StatsCard';
+import { RealtimeMetrics } from './RealtimeMetrics';
 import { useContacts, useCampaigns, Campaign } from '@/hooks/useData';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function Dashboard() {
   const { contacts, loading: contactsLoading } = useContacts();
@@ -54,38 +56,54 @@ export function Dashboard() {
         <p className="mt-1 text-muted-foreground">Visão geral das suas campanhas de WhatsApp</p>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard title="Total de Contatos" value={stats.totalContacts} icon={Users} variant="info" />
-        <StatsCard title="Mensagens Enviadas" value={stats.sentMessages} subtitle={`de ${stats.totalMessages} total`} icon={Send} variant="success" />
-        <StatsCard title="Taxa de Entrega" value={stats.totalMessages > 0 ? `${Math.round((stats.deliveredMessages / Math.max(stats.sentMessages, 1)) * 100)}%` : '0%'} icon={CheckCircle} variant="success" />
-        <StatsCard title="Falhas" value={stats.failedMessages} icon={XCircle} variant={stats.failedMessages > 0 ? 'warning' : 'default'} />
-      </div>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="realtime" className="gap-2">
+            <Activity className="h-4 w-4" />
+            Tempo Real
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-6 sm:grid-cols-3">
-        <StatsCard title="Campanhas Ativas" value={stats.activeCampaigns} icon={MessageSquare} />
-        <StatsCard title="Mensagens Pendentes" value={stats.pendingMessages} icon={Clock} />
-        <StatsCard title="Total de Campanhas" value={stats.totalCampaigns} icon={Send} />
-      </div>
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <StatsCard title="Total de Contatos" value={stats.totalContacts} icon={Users} variant="info" />
+            <StatsCard title="Mensagens Enviadas" value={stats.sentMessages} subtitle={`de ${stats.totalMessages} total`} icon={Send} variant="success" />
+            <StatsCard title="Taxa de Entrega" value={stats.totalMessages > 0 ? `${Math.round((stats.deliveredMessages / Math.max(stats.sentMessages, 1)) * 100)}%` : '0%'} icon={CheckCircle} variant="success" />
+            <StatsCard title="Falhas" value={stats.failedMessages} icon={XCircle} variant={stats.failedMessages > 0 ? 'warning' : 'default'} />
+          </div>
 
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
-        <h2 className="font-display text-xl font-semibold text-foreground">Campanhas Recentes</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Últimas campanhas criadas</p>
-        
-        <div className="mt-6">
-          {recentCampaigns.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <MessageSquare className="h-12 w-12 text-muted-foreground/50" />
-              <p className="mt-4 text-muted-foreground">Nenhuma campanha criada ainda</p>
+          <div className="grid gap-6 sm:grid-cols-3">
+            <StatsCard title="Campanhas Ativas" value={stats.activeCampaigns} icon={MessageSquare} />
+            <StatsCard title="Mensagens Pendentes" value={stats.pendingMessages} icon={Clock} />
+            <StatsCard title="Total de Campanhas" value={stats.totalCampaigns} icon={Send} />
+          </div>
+
+          <div className="rounded-xl border bg-card p-6 shadow-sm">
+            <h2 className="font-display text-xl font-semibold text-foreground">Campanhas Recentes</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Últimas campanhas criadas</p>
+            
+            <div className="mt-6">
+              {recentCampaigns.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <MessageSquare className="h-12 w-12 text-muted-foreground/50" />
+                  <p className="mt-4 text-muted-foreground">Nenhuma campanha criada ainda</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentCampaigns.map((campaign) => (
+                    <CampaignRow key={campaign.id} campaign={campaign} />
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="space-y-4">
-              {recentCampaigns.map((campaign) => (
-                <CampaignRow key={campaign.id} campaign={campaign} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="realtime">
+          <RealtimeMetrics />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
