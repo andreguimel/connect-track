@@ -45,7 +45,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   // Media
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | 'document' | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,22 +110,32 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     if (!file) return;
 
     const fileType = file.type.split('/')[0];
-    if (!['image', 'video', 'audio'].includes(fileType)) {
+    const isDocument = file.type === 'application/pdf' || 
+                       file.type === 'application/msword' ||
+                       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                       file.type === 'application/vnd.ms-excel' ||
+                       file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    if (!['image', 'video', 'audio'].includes(fileType) && !isDocument) {
       toast({
         title: "Tipo de arquivo inválido",
-        description: "Selecione uma imagem, vídeo ou áudio",
+        description: "Selecione uma imagem, vídeo, áudio ou documento (PDF, DOC, DOCX, XLS, XLSX)",
         variant: "destructive",
       });
       return;
     }
 
     setMediaFile(file);
-    setMediaType(fileType as 'image' | 'video' | 'audio');
     
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => setMediaPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    if (isDocument) {
+      setMediaType('document');
+      setMediaPreview(null);
+    } else {
+      setMediaType(fileType as 'image' | 'video' | 'audio');
+      const reader = new FileReader();
+      reader.onload = (e) => setMediaPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const clearMedia = () => {
@@ -415,12 +425,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                 )}
               </div>
               
-              {!mediaFile ? (
+                {!mediaFile ? (
                 <div className="flex gap-2">
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,video/*,audio/*"
+                    accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={handleFileSelect}
                     className="hidden"
                   />
@@ -439,6 +449,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                     {mediaType === 'image' && <Image className="h-8 w-8 text-primary" />}
                     {mediaType === 'video' && <Video className="h-8 w-8 text-primary" />}
                     {mediaType === 'audio' && <Music className="h-8 w-8 text-primary" />}
+                    {mediaType === 'document' && <FileText className="h-8 w-8 text-primary" />}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground truncate">{mediaFile.name}</p>
                       <p className="text-sm text-muted-foreground">
@@ -459,7 +470,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
               )}
               
               <p className="text-xs text-muted-foreground">
-                Formatos suportados: imagens, vídeos e áudios
+                Formatos suportados: imagens, vídeos, áudios e documentos (PDF, DOC, DOCX, XLS, XLSX)
               </p>
             </div>
           </div>

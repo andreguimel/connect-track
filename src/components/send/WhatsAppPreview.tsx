@@ -1,13 +1,14 @@
-import { Check, CheckCheck, Smartphone } from 'lucide-react';
+import { Check, CheckCheck, Smartphone, FileText } from 'lucide-react';
 
 interface WhatsAppPreviewProps {
   message: string;
   mediaUrl?: string | null;
-  mediaType?: 'image' | 'video' | 'audio' | null;
+  mediaType?: 'image' | 'video' | 'audio' | 'document' | null;
   contactName?: string;
+  fileName?: string;
 }
 
-export function WhatsAppPreview({ message, mediaUrl, mediaType, contactName = 'João' }: WhatsAppPreviewProps) {
+export function WhatsAppPreview({ message, mediaUrl, mediaType, contactName = 'João', fileName }: WhatsAppPreviewProps) {
   const currentTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const processedMessage = message.replace('{nome}', contactName);
 
@@ -89,6 +90,22 @@ export function WhatsAppPreview({ message, mediaUrl, mediaType, contactName = 'J
                         ))}
                       </div>
                       <span className="text-[10px] text-zinc-600">0:00</span>
+                    </div>
+                  </div>
+                )}
+
+                {mediaUrl && mediaType === 'document' && (
+                  <div className="px-2 pt-2 pb-1">
+                    <div className="flex items-center gap-3 bg-white/50 rounded-lg px-3 py-2 border border-zinc-200">
+                      <div className="w-10 h-12 rounded bg-red-500 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium text-zinc-800 truncate">
+                          {fileName || 'documento.pdf'}
+                        </p>
+                        <p className="text-[10px] text-zinc-500">PDF • Documento</p>
+                      </div>
                     </div>
                   </div>
                 )}

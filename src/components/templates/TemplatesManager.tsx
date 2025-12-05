@@ -48,9 +48,9 @@ export function TemplatesManager() {
   // Media state
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | 'document' | null>(null);
   const [existingMediaUrl, setExistingMediaUrl] = useState<string | null>(null);
-  const [existingMediaType, setExistingMediaType] = useState<'image' | 'video' | 'audio' | null>(null);
+  const [existingMediaType, setExistingMediaType] = useState<'image' | 'video' | 'audio' | 'document' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTemplates = useMemo(() => {
@@ -86,23 +86,34 @@ export function TemplatesManager() {
     if (!file) return;
 
     const fileType = file.type.split('/')[0];
-    if (!['image', 'video', 'audio'].includes(fileType)) {
+    const isDocument = file.type === 'application/pdf' || 
+                       file.type === 'application/msword' ||
+                       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                       file.type === 'application/vnd.ms-excel' ||
+                       file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    if (!['image', 'video', 'audio'].includes(fileType) && !isDocument) {
       toast({
         title: "Tipo de arquivo inválido",
-        description: "Selecione uma imagem, vídeo ou áudio",
+        description: "Selecione uma imagem, vídeo, áudio ou documento (PDF, DOC, DOCX, XLS, XLSX)",
         variant: "destructive",
       });
       return;
     }
 
     setMediaFile(file);
-    setMediaType(fileType as 'image' | 'video' | 'audio');
     setExistingMediaUrl(null);
     setExistingMediaType(null);
     
-    const reader = new FileReader();
-    reader.onload = (e) => setMediaPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    if (isDocument) {
+      setMediaType('document');
+      setMediaPreview(null);
+    } else {
+      setMediaType(fileType as 'image' | 'video' | 'audio');
+      const reader = new FileReader();
+      reader.onload = (e) => setMediaPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const clearMedia = () => {
@@ -129,7 +140,7 @@ export function TemplatesManager() {
 
     // Upload media if new file selected
     let mediaUrl: string | null = existingMediaUrl;
-    let finalMediaType: 'image' | 'video' | 'audio' | null = existingMediaType;
+    let finalMediaType: 'image' | 'video' | 'audio' | 'document' | null = existingMediaType;
 
     if (mediaFile) {
       const { url, error } = await uploadTemplateMedia(mediaFile);
@@ -182,6 +193,7 @@ export function TemplatesManager() {
     image: Image,
     video: Video,
     audio: Music,
+    document: FileText,
   };
 
   if (loading) {
@@ -260,7 +272,7 @@ export function TemplatesManager() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*,video/*,audio/*"
+                      accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                       onChange={handleFileSelect}
                       className="hidden"
                     />
@@ -273,7 +285,7 @@ export function TemplatesManager() {
                       Selecionar arquivo
                     </Button>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Formatos suportados: imagens, vídeos e áudios
+                      Formatos suportados: imagens, vídeos, áudios e documentos (PDF, DOC, DOCX, XLS, XLSX)
                     </p>
                   </div>
                 ) : (
@@ -283,6 +295,7 @@ export function TemplatesManager() {
                         {mediaType === 'image' && <Image className="h-8 w-8 text-primary" />}
                         {mediaType === 'video' && <Video className="h-8 w-8 text-primary" />}
                         {mediaType === 'audio' && <Music className="h-8 w-8 text-primary" />}
+                        {mediaType === 'document' && <FileText className="h-8 w-8 text-primary" />}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-foreground truncate">{mediaFile.name}</p>
                           <p className="text-sm text-muted-foreground">
@@ -295,6 +308,7 @@ export function TemplatesManager() {
                         {existingMediaType === 'image' && <Image className="h-8 w-8 text-primary" />}
                         {existingMediaType === 'video' && <Video className="h-8 w-8 text-primary" />}
                         {existingMediaType === 'audio' && <Music className="h-8 w-8 text-primary" />}
+                        {existingMediaType === 'document' && <FileText className="h-8 w-8 text-primary" />}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-foreground">Mídia existente</p>
                           <p className="text-sm text-muted-foreground capitalize">{existingMediaType}</p>
@@ -332,6 +346,7 @@ export function TemplatesManager() {
                   mediaUrl={mediaPreview || existingMediaUrl}
                   mediaType={mediaType || existingMediaType}
                   contactName="João"
+                  fileName={mediaFile?.name}
                 />
               )}
             </div>
