@@ -32,7 +32,7 @@ export interface Campaign {
   id: string;
   name: string;
   message: string;
-  status: 'draft' | 'running' | 'paused' | 'completed';
+  status: 'draft' | 'running' | 'paused' | 'completed' | 'scheduled';
   stats: {
     total: number;
     pending: number;
@@ -42,6 +42,9 @@ export interface Campaign {
   };
   created_at: string;
   completed_at?: string;
+  scheduled_at?: string;
+  media_url?: string;
+  media_type?: 'image' | 'video' | 'audio';
 }
 
 export interface CampaignContact {
@@ -239,7 +242,8 @@ export function useCampaigns() {
     setCampaigns((data || []).map(c => ({
       ...c,
       status: c.status as Campaign['status'],
-      stats: c.stats as Campaign['stats']
+      stats: c.stats as Campaign['stats'],
+      media_type: c.media_type as Campaign['media_type']
     })));
     setLoading(false);
   }, [user]);
@@ -248,7 +252,16 @@ export function useCampaigns() {
     fetchCampaigns();
   }, [fetchCampaigns]);
 
-  const createCampaign = async (name: string, message: string, contactIds: string[]) => {
+  const createCampaign = async (
+    name: string, 
+    message: string, 
+    contactIds: string[],
+    options?: {
+      scheduled_at?: string;
+      media_url?: string;
+      media_type?: 'image' | 'video' | 'audio';
+    }
+  ) => {
     if (!user) return { campaign: null, error: new Error('Not authenticated') };
     
     const stats = {
@@ -261,7 +274,16 @@ export function useCampaigns() {
 
     const { data: campaign, error } = await supabase
       .from('campaigns')
-      .insert({ name, message, user_id: user.id, stats })
+      .insert({ 
+        name, 
+        message, 
+        user_id: user.id, 
+        stats,
+        status: options?.scheduled_at ? 'scheduled' : 'draft',
+        scheduled_at: options?.scheduled_at || null,
+        media_url: options?.media_url || null,
+        media_type: options?.media_type || null
+      })
       .select()
       .single();
 
@@ -277,6 +299,25 @@ export function useCampaigns() {
     fetchCampaigns();
 
     return { campaign, error: null };
+  };
+
+  const uploadCampaignMedia = async (file: File): Promise<{ url: string | null; error: Error | null }> => {
+    if (!user) return { url: null, error: new Error('Not authenticated') };
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+    
+    const { error } = await supabase.storage
+      .from('campaign-media')
+      .upload(fileName, file);
+    
+    if (error) return { url: null, error };
+    
+    const { data } = supabase.storage
+      .from('campaign-media')
+      .getPublicUrl(fileName);
+    
+    return { url: data.publicUrl, error: null };
   };
 
   const updateCampaign = async (id: string, updates: Partial<Campaign>) => {
@@ -335,6 +376,7 @@ export function useCampaigns() {
     updateCampaign, 
     deleteCampaign,
     getCampaignContacts,
-    updateCampaignContactStatus
+    updateCampaignContactStatus,
+    uploadCampaignMedia
   };
 }
