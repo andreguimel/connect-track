@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Upload, Search, Trash2, Users, Plus, Download } from 'lucide-react';
+import { Upload, Search, Trash2, Users, Plus, Download, FolderPlus, Tag, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Contact } from '@/types/contact';
-import { getContacts, addContacts, deleteContact, saveContacts } from '@/lib/storage';
+import { Contact, ContactGroup } from '@/types/contact';
+import { getContacts, addContacts, deleteContact, saveContacts, getGroups, addGroup, updateGroup, deleteGroup, updateContactGroup } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -22,22 +22,69 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+
+const GROUP_COLORS = [
+  { name: 'Azul', value: 'bg-blue-500' },
+  { name: 'Verde', value: 'bg-green-500' },
+  { name: 'Vermelho', value: 'bg-red-500' },
+  { name: 'Amarelo', value: 'bg-yellow-500' },
+  { name: 'Roxo', value: 'bg-purple-500' },
+  { name: 'Rosa', value: 'bg-pink-500' },
+  { name: 'Laranja', value: 'bg-orange-500' },
+  { name: 'Ciano', value: 'bg-cyan-500' },
+];
 
 export function ContactsManager() {
   const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>(getContacts());
+  const [groups, setGroups] = useState<ContactGroup[]>(getGroups());
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newContact, setNewContact] = useState({ name: '', phone: '', email: '' });
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<ContactGroup | null>(null);
+  const [newContact, setNewContact] = useState({ name: '', phone: '', email: '', groupId: '' });
+  const [newGroup, setNewGroup] = useState({ name: '', color: 'bg-blue-500' });
+
+  const refreshData = () => {
+    setContacts(getContacts());
+    setGroups(getGroups());
+  };
 
   const filteredContacts = useMemo(() => {
-    if (!searchTerm) return contacts;
-    const term = searchTerm.toLowerCase();
-    return contacts.filter(
-      c => c.name.toLowerCase().includes(term) || c.phone.includes(term)
-    );
-  }, [contacts, searchTerm]);
+    let filtered = contacts;
+    
+    if (selectedGroupFilter !== 'all') {
+      if (selectedGroupFilter === 'none') {
+        filtered = filtered.filter(c => !c.groupId);
+      } else {
+        filtered = filtered.filter(c => c.groupId === selectedGroupFilter);
+      }
+    }
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        c => c.name.toLowerCase().includes(term) || c.phone.includes(term)
+      );
+    }
+    
+    return filtered;
+  }, [contacts, searchTerm, selectedGroupFilter]);
+
+  const getGroupById = (groupId: string | undefined) => {
+    if (!groupId) return null;
+    return groups.find(g => g.id === groupId);
+  };
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -62,16 +109,31 @@ export function ContactsManager() {
           const name = parts[0];
           const phone = parts[1].replace(/\D/g, '');
           const email = parts[2] || undefined;
+          const groupName = parts[3]?.trim();
+          
+          // Find or create group by name
+          let groupId: string | undefined;
+          if (groupName) {
+            const existingGroup = groups.find(g => g.name.toLowerCase() === groupName.toLowerCase());
+            if (existingGroup) {
+              groupId = existingGroup.id;
+            } else {
+              // Create new group
+              const newGroupItem = addGroup(groupName, GROUP_COLORS[groups.length % GROUP_COLORS.length].value);
+              groupId = newGroupItem.id;
+              setGroups(getGroups());
+            }
+          }
           
           if (name && phone && phone.length >= 10) {
-            newContacts.push({ name, phone, email });
+            newContacts.push({ name, phone, email, groupId });
           }
         }
       }
       
       if (newContacts.length > 0) {
         const result = addContacts(newContacts);
-        setContacts(getContacts());
+        refreshData();
         toast({
           title: "Importação concluída",
           description: `${result.added} contatos adicionados${result.duplicates > 0 ? `, ${result.duplicates} duplicados ignorados` : ''}`,
@@ -86,7 +148,7 @@ export function ContactsManager() {
     };
     reader.readAsText(file);
     event.target.value = '';
-  }, [toast]);
+  }, [toast, groups]);
 
   const handleAddContact = () => {
     if (!newContact.name || !newContact.phone) {
@@ -111,12 +173,13 @@ export function ContactsManager() {
     const result = addContacts([{ 
       name: newContact.name, 
       phone,
-      email: newContact.email || undefined 
+      email: newContact.email || undefined,
+      groupId: newContact.groupId || undefined,
     }]);
 
     if (result.added > 0) {
-      setContacts(getContacts());
-      setNewContact({ name: '', phone: '', email: '' });
+      refreshData();
+      setNewContact({ name: '', phone: '', email: '', groupId: '' });
       setIsAddDialogOpen(false);
       toast({
         title: "Sucesso",
@@ -131,9 +194,59 @@ export function ContactsManager() {
     }
   };
 
+  const handleAddGroup = () => {
+    if (!newGroup.name.trim()) {
+      toast({
+        title: "Erro",
+        description: "Nome do grupo é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editingGroup) {
+      updateGroup(editingGroup.id, newGroup.name, newGroup.color);
+      toast({
+        title: "Sucesso",
+        description: "Grupo atualizado com sucesso",
+      });
+    } else {
+      addGroup(newGroup.name, newGroup.color);
+      toast({
+        title: "Sucesso",
+        description: "Grupo criado com sucesso",
+      });
+    }
+
+    refreshData();
+    setNewGroup({ name: '', color: 'bg-blue-500' });
+    setEditingGroup(null);
+    setIsGroupDialogOpen(false);
+  };
+
+  const handleEditGroup = (group: ContactGroup) => {
+    setEditingGroup(group);
+    setNewGroup({ name: group.name, color: group.color });
+    setIsGroupDialogOpen(true);
+  };
+
+  const handleDeleteGroup = (id: string) => {
+    deleteGroup(id);
+    refreshData();
+    toast({
+      title: "Grupo removido",
+      description: "O grupo foi removido e os contatos foram desvinculados",
+    });
+  };
+
+  const handleChangeContactGroup = (contactId: string, groupId: string) => {
+    updateContactGroup(contactId, groupId === 'none' ? undefined : groupId);
+    refreshData();
+  };
+
   const handleDelete = (id: string) => {
     deleteContact(id);
-    setContacts(getContacts());
+    refreshData();
     toast({
       title: "Contato removido",
       description: "O contato foi removido com sucesso",
@@ -141,11 +254,12 @@ export function ContactsManager() {
   };
 
   const handleExportCSV = () => {
-    const headers = ['Nome', 'Telefone', 'Email', 'Data de Cadastro'];
+    const headers = ['Nome', 'Telefone', 'Email', 'Grupo', 'Data de Cadastro'];
     const rows = contacts.map(c => [
       c.name,
       c.phone,
       c.email || '',
+      getGroupById(c.groupId)?.name || '',
       c.createdAt.toLocaleDateString('pt-BR')
     ]);
     
@@ -173,7 +287,7 @@ export function ContactsManager() {
           </p>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <Button variant="outline" onClick={handleExportCSV} disabled={contacts.length === 0}>
             <Download className="mr-2 h-4 w-4" />
             Exportar
@@ -194,6 +308,86 @@ export function ContactsManager() {
             onChange={handleFileUpload}
             className="hidden"
           />
+
+          <Dialog open={isGroupDialogOpen} onOpenChange={(open) => {
+            setIsGroupDialogOpen(open);
+            if (!open) {
+              setEditingGroup(null);
+              setNewGroup({ name: '', color: 'bg-blue-500' });
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <FolderPlus className="mr-2 h-4 w-4" />
+                Grupos
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingGroup ? 'Editar Grupo' : 'Gerenciar Grupos'}</DialogTitle>
+                <DialogDescription>
+                  {editingGroup ? 'Edite os dados do grupo' : 'Crie e gerencie grupos para organizar seus contatos'}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="group-name">Nome do Grupo</Label>
+                  <Input
+                    id="group-name"
+                    value={newGroup.name}
+                    onChange={(e) => setNewGroup(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ex: Clientes VIP"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Cor</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {GROUP_COLORS.map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setNewGroup(prev => ({ ...prev, color: color.value }))}
+                        className={`h-8 w-8 rounded-full ${color.value} ${newGroup.color === color.value ? 'ring-2 ring-offset-2 ring-primary' : ''}`}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <Button onClick={handleAddGroup} className="w-full">
+                  {editingGroup ? 'Salvar Alterações' : 'Criar Grupo'}
+                </Button>
+
+                {!editingGroup && groups.length > 0 && (
+                  <div className="border-t pt-4">
+                    <Label className="mb-2 block">Grupos Existentes</Label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {groups.map((group) => (
+                        <div key={group.id} className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`h-4 w-4 rounded-full ${group.color}`} />
+                            <span className="font-medium">{group.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({contacts.filter(c => c.groupId === group.id).length} contatos)
+                            </span>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditGroup(group)}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
           
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -238,6 +432,28 @@ export function ContactsManager() {
                     placeholder="email@exemplo.com"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact-group">Grupo (opcional)</Label>
+                  <Select
+                    value={newContact.groupId || 'none'}
+                    onValueChange={(value) => setNewContact(prev => ({ ...prev, groupId: value === 'none' ? '' : value }))}
+                  >
+                    <SelectTrigger id="contact-group">
+                      <SelectValue placeholder="Selecione um grupo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem grupo</SelectItem>
+                      {groups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          <div className="flex items-center gap-2">
+                            <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                            {group.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
@@ -252,16 +468,36 @@ export function ContactsManager() {
         </div>
       </div>
 
-      {/* Search and Stats */}
+      {/* Search and Filters */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar contatos..."
-            className="pl-10"
-          />
+        <div className="flex flex-1 gap-4 max-w-2xl">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar contatos..."
+              className="pl-10"
+            />
+          </div>
+          <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
+            <SelectTrigger className="w-48">
+              <Tag className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Filtrar por grupo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os grupos</SelectItem>
+              <SelectItem value="none">Sem grupo</SelectItem>
+              {groups.map((group) => (
+                <SelectItem key={group.id} value={group.id}>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                    {group.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
@@ -272,8 +508,8 @@ export function ContactsManager() {
       {/* CSV Format Hint */}
       <div className="rounded-lg border border-border bg-accent/30 p-4">
         <p className="text-sm text-muted-foreground">
-          <strong>Formato do CSV:</strong> Nome, Telefone, Email (opcional). 
-          Exemplo: <code className="rounded bg-secondary px-1.5 py-0.5">João Silva, 5511999999999, joao@email.com</code>
+          <strong>Formato do CSV:</strong> Nome, Telefone, Email, Grupo (opcional). 
+          Exemplo: <code className="rounded bg-secondary px-1.5 py-0.5">João Silva, 5511999999999, joao@email.com, Clientes VIP</code>
         </p>
       </div>
 
@@ -296,31 +532,65 @@ export function ContactsManager() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Grupo</TableHead>
                 <TableHead>Data de Cadastro</TableHead>
                 <TableHead className="w-16"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredContacts.map((contact) => (
-                <TableRow key={contact.id}>
-                  <TableCell className="font-medium">{contact.name}</TableCell>
-                  <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
-                  <TableCell className="text-muted-foreground">{contact.email || '-'}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {contact.createdAt.toLocaleDateString('pt-BR')}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(contact.id)}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredContacts.map((contact) => {
+                const group = getGroupById(contact.groupId);
+                return (
+                  <TableRow key={contact.id}>
+                    <TableCell className="font-medium">{contact.name}</TableCell>
+                    <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
+                    <TableCell className="text-muted-foreground">{contact.email || '-'}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={contact.groupId || 'none'}
+                        onValueChange={(value) => handleChangeContactGroup(contact.id, value)}
+                      >
+                        <SelectTrigger className="w-36 h-8">
+                          <SelectValue>
+                            {group ? (
+                              <div className="flex items-center gap-2">
+                                <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                                <span className="truncate">{group.name}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">Sem grupo</span>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem grupo</SelectItem>
+                          {groups.map((g) => (
+                            <SelectItem key={g.id} value={g.id}>
+                              <div className="flex items-center gap-2">
+                                <div className={`h-3 w-3 rounded-full ${g.color}`} />
+                                {g.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {contact.createdAt.toLocaleDateString('pt-BR')}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(contact.id)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
