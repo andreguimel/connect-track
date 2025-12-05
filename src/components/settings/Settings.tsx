@@ -137,6 +137,10 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
         message: testMessage,
         timestamp: new Date().toISOString(),
         isTest: true,
+        // Evolution API settings
+        evolutionApiUrl: evolutionSettings.apiUrl,
+        evolutionInstance: evolutionSettings.instanceName,
+        evolutionApiKey: evolutionSettings.apiKey,
       };
 
       console.log('Enviando mensagem de teste via proxy:', payload);
