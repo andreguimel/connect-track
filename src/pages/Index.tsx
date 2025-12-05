@@ -87,7 +87,29 @@ const Index = () => {
         setRefreshKey(k => k + 1);
 
         let finalMessage = campaign.message.replace('{nome}', cc.contact?.name || '');
-        if (antiBanSettings.enableRandomVariation) {
+        
+        // Variação por IA (prioridade) ou variação básica
+        if (antiBanSettings.enableAIVariation) {
+          try {
+            const { data, error } = await supabase.functions.invoke('variate-message', {
+              body: { message: finalMessage }
+            });
+            if (!error && data?.success && data?.variedMessage) {
+              finalMessage = data.variedMessage;
+              console.log('Mensagem variada por IA:', finalMessage.substring(0, 50) + '...');
+            } else {
+              console.warn('Fallback para variação básica:', error || data?.error);
+              if (antiBanSettings.enableRandomVariation) {
+                finalMessage = addMessageVariation(finalMessage);
+              }
+            }
+          } catch (aiError) {
+            console.warn('Erro na variação por IA, usando básica:', aiError);
+            if (antiBanSettings.enableRandomVariation) {
+              finalMessage = addMessageVariation(finalMessage);
+            }
+          }
+        } else if (antiBanSettings.enableRandomVariation) {
           finalMessage = addMessageVariation(finalMessage);
         }
 

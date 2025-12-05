@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.status-callback]
 verify_jwt = false
+
+[functions.variate-message]
+verify_jwt = false

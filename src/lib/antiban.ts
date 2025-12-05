@@ -7,6 +7,7 @@ export interface AntiBanSettings {
   batchSize: number;
   batchPauseMinutes: number;
   enableRandomVariation: boolean;
+  enableAIVariation: boolean;
 }
 
 const ANTIBAN_STORAGE_KEY = 'zapsender_antiban_settings';
@@ -19,6 +20,7 @@ export const defaultAntiBanSettings: AntiBanSettings = {
   batchSize: 50,
   batchPauseMinutes: 5,
   enableRandomVariation: true,
+  enableAIVariation: false,
 };
 
 export function getAntiBanSettings(): AntiBanSettings {
@@ -89,7 +91,7 @@ export function getRemainingDaily(settings: AntiBanSettings): number {
   return Math.max(0, settings.dailyLimit - getDailySentCount());
 }
 
-// Message variation helpers to avoid detection
+// Message variation helpers to avoid detection (basic fallback)
 export function addMessageVariation(message: string): string {
   const variations = [
     () => message + ' ',
