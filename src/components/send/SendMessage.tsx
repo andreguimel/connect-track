@@ -145,11 +145,33 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const getEvolutionSettings = () => {
+    const saved = localStorage.getItem('evolution_settings');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
   const sendViaWebhook = async (campaign: Campaign) => {
     if (!webhookUrl) {
       toast({
         title: "Webhook não configurado",
         description: "Configure o webhook do n8n nas configurações",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const evolutionSettings = getEvolutionSettings();
+    if (!evolutionSettings?.apiUrl || !evolutionSettings?.instanceName || !evolutionSettings?.apiKey) {
+      toast({
+        title: "Evolution API não configurada",
+        description: "Configure a Evolution API na aba Conexão das configurações",
         variant: "destructive",
       });
       return;
@@ -181,6 +203,10 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
             mediaUrl: campaign.media_url,
             mediaType: campaign.media_type,
             timestamp: new Date().toISOString(),
+            // Evolution API settings
+            evolutionApiUrl: evolutionSettings.apiUrl,
+            evolutionInstance: evolutionSettings.instanceName,
+            evolutionApiKey: evolutionSettings.apiKey,
           }),
         });
 
