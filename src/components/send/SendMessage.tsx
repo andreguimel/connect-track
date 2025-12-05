@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { useContacts, useGroups, useTemplates, useCampaigns, Campaign } from '@/hooks/useData';
+import { useEvolutionInstances, EvolutionInstance } from '@/hooks/useEvolutionInstances';
 import { useToast } from '@/hooks/use-toast';
 import { getAntiBanSettings, getRandomDelay } from '@/lib/antiban';
 import { WhatsAppPreview } from './WhatsAppPreview';
@@ -31,6 +32,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const { groups } = useGroups();
   const { templates } = useTemplates();
   const { createCampaign, updateCampaign, getCampaignContacts, updateCampaignContactStatus, uploadCampaignMedia } = useCampaigns();
+  const { instances } = useEvolutionInstances();
   
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [campaignName, setCampaignName] = useState('');
@@ -40,6 +42,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('none');
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
   
   // Scheduling
   const [isScheduled, setIsScheduled] = useState(false);
@@ -52,6 +55,19 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | 'document' | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Set default instance when instances load
+  useEffect(() => {
+    if (instances.length > 0 && !selectedInstanceId) {
+      const connected = instances.find(i => i.status === 'connected');
+      setSelectedInstanceId(connected?.id || instances[0].id);
+    }
+  }, [instances, selectedInstanceId]);
+
+  const connectedInstances = useMemo(() => 
+    instances.filter(i => i.status === 'connected'), 
+    [instances]
+  );
 
   const filteredContacts = useMemo(() => {
     let filtered = contacts;
@@ -149,16 +165,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const getEvolutionSettings = () => {
-    const saved = localStorage.getItem('zapsender_evolution_settings');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return null;
-      }
-    }
-    return null;
+  const getSelectedInstance = (): EvolutionInstance | null => {
+    return instances.find(i => i.id === selectedInstanceId) || null;
   };
 
   const sendViaWebhook = async (campaign: Campaign) => {
@@ -171,11 +179,20 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       return;
     }
 
-    const evolutionSettings = getEvolutionSettings();
-    if (!evolutionSettings?.apiUrl || !evolutionSettings?.instanceName || !evolutionSettings?.apiKey) {
+    const selectedInstance = getSelectedInstance();
+    if (!selectedInstance) {
       toast({
-        title: "Evolution API não configurada",
-        description: "Configure a Evolution API na aba Conexão das configurações",
+        title: "Nenhuma conexão selecionada",
+        description: "Selecione uma conexão WhatsApp conectada",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedInstance.status !== 'connected') {
+      toast({
+        title: "Conexão desconectada",
+        description: "A conexão selecionada não está conectada ao WhatsApp",
         variant: "destructive",
       });
       return;
@@ -198,7 +215,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           body: {
             webhookUrl,
             payload: {
-              key: evolutionSettings.apiKey,
+              key: selectedInstance.api_key,
               remoteJid: `${cc.contact?.phone}@s.whatsapp.net`,
               campaignId: campaign.id,
               contactId: cc.contact_id,
@@ -208,8 +225,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
               mediaUrl: campaign.media_url,
               mediaType: campaign.media_type,
               timestamp: new Date().toISOString(),
-              evolutionApiUrl: evolutionSettings.apiUrl,
-              evolutionInstance: evolutionSettings.instanceName,
+              evolutionApiUrl: selectedInstance.api_url,
+              evolutionInstance: selectedInstance.instance_name,
             },
           },
         });
@@ -395,6 +412,40 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left: Form */}
         <div className="space-y-6">
+          {/* Instance Selection */}
+          {instances.length > 0 && (
+            <div className="rounded-xl border bg-card p-6 shadow-sm">
+              <div className="space-y-2">
+                <Label htmlFor="instance-select" className="flex items-center gap-2">
+                  <Wifi className="h-4 w-4" />
+                  Conexão WhatsApp
+                </Label>
+                <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+                  <SelectTrigger id="instance-select">
+                    <SelectValue placeholder="Selecione uma conexão" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {instances.map((instance) => (
+                      <SelectItem key={instance.id} value={instance.id}>
+                        <div className="flex items-center gap-2">
+                          {instance.name}
+                          {instance.status === 'connected' ? (
+                            <span className="text-xs text-success">✓ Conectado</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">(desconectado)</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {connectedInstances.length === 0 && (
+                  <p className="text-xs text-warning">Nenhuma conexão ativa. Conecte um WhatsApp nas configurações.</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Campaign Name */}
           <div className="rounded-xl border bg-card p-6 shadow-sm">
             <div className="space-y-4">
