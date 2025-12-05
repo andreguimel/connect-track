@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -34,6 +35,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [campaignName, setCampaignName] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('none');
@@ -182,9 +184,11 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     await updateCampaign(campaign.id, { status: 'running' });
 
     const campaignContacts = await getCampaignContacts(campaign.id);
+    const pendingContacts = campaignContacts.filter(cc => cc.status === 'pending');
+    setSendingProgress({ current: 0, total: pendingContacts.length });
 
-    for (const cc of campaignContacts) {
-      if (cc.status !== 'pending') continue;
+    let processed = 0;
+    for (const cc of pendingContacts) {
 
       try {
         await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sending');
@@ -212,6 +216,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         });
 
         await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent');
+        processed++;
+        setSendingProgress({ current: processed, total: pendingContacts.length });
         
         // Apply anti-ban delay between messages
         const antiBanSettings = getAntiBanSettings();
@@ -232,6 +238,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     await updateCampaign(campaign.id, { status: 'completed', completed_at: new Date().toISOString() });
 
     setIsSending(false);
+    setSendingProgress({ current: 0, total: 0 });
     toast({
       title: "Campanha finalizada",
       description: "Verifique o status dos envios na aba Campanhas",
@@ -358,6 +365,30 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           Crie e envie campanhas de WhatsApp em massa
         </p>
       </div>
+
+      {/* Progress Bar during sending */}
+      {isSending && sendingProgress.total > 0 && (
+        <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="font-medium">Enviando mensagens...</span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {sendingProgress.current} de {sendingProgress.total}
+              </span>
+            </div>
+            <Progress 
+              value={(sendingProgress.current / sendingProgress.total) * 100} 
+              className="h-2"
+            />
+            <p className="text-xs text-muted-foreground">
+              {Math.round((sendingProgress.current / sendingProgress.total) * 100)}% concluído
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left: Form */}
