@@ -25,7 +25,7 @@ export interface MessageTemplate {
   content: string;
   category?: string;
   media_url?: string;
-  media_type?: 'image' | 'video' | 'audio';
+  media_type?: 'image' | 'video' | 'audio' | 'document';
   created_at: string;
   updated_at: string;
 }
@@ -46,7 +46,7 @@ export interface Campaign {
   completed_at?: string;
   scheduled_at?: string;
   media_url?: string;
-  media_type?: 'image' | 'video' | 'audio';
+  media_type?: 'image' | 'video' | 'audio' | 'document';
 }
 
 export interface CampaignContact {
@@ -204,7 +204,7 @@ export function useTemplates() {
     name: string, 
     content: string, 
     category?: string,
-    options?: { media_url?: string; media_type?: 'image' | 'video' | 'audio' }
+    options?: { media_url?: string; media_type?: 'image' | 'video' | 'audio' | 'document' }
   ) => {
     if (!user) return { error: new Error('Not authenticated') };
     const { data, error } = await supabase
@@ -228,7 +228,7 @@ export function useTemplates() {
     name: string, 
     content: string, 
     category?: string,
-    options?: { media_url?: string | null; media_type?: 'image' | 'video' | 'audio' | null }
+    options?: { media_url?: string | null; media_type?: 'image' | 'video' | 'audio' | 'document' | null }
   ) => {
     const updates: Record<string, unknown> = { name, content, category };
     if (options?.media_url !== undefined) updates.media_url = options.media_url;
@@ -305,7 +305,7 @@ export function useCampaigns() {
     options?: {
       scheduled_at?: string;
       media_url?: string;
-      media_type?: 'image' | 'video' | 'audio';
+      media_type?: 'image' | 'video' | 'audio' | 'document';
     }
   ) => {
     if (!user) return { campaign: null, error: new Error('Not authenticated') };
