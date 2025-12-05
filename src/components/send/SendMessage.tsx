@@ -200,18 +200,20 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           },
           mode: 'no-cors',
           body: JSON.stringify({
-            campaignId: campaign.id,
-            contactId: cc.contact_id,
-            phone: cc.contact?.phone,
-            name: cc.contact?.name,
-            message: campaign.message,
-            mediaUrl: campaign.media_url,
-            mediaType: campaign.media_type,
-            timestamp: new Date().toISOString(),
-            // Evolution API settings
-            evolutionApiUrl: evolutionSettings.apiUrl,
-            evolutionInstance: evolutionSettings.instanceName,
-            evolutionApiKey: evolutionSettings.apiKey,
+            key: evolutionSettings.apiKey,
+            remoteJid: `${cc.contact?.phone}@s.whatsapp.net`,
+            data: {
+              campaignId: campaign.id,
+              contactId: cc.contact_id,
+              phone: cc.contact?.phone,
+              name: cc.contact?.name,
+              message: campaign.message,
+              mediaUrl: campaign.media_url,
+              mediaType: campaign.media_type,
+              timestamp: new Date().toISOString(),
+              evolutionApiUrl: evolutionSettings.apiUrl,
+              evolutionInstance: evolutionSettings.instanceName,
+            },
           }),
         });
 
