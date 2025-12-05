@@ -24,6 +24,8 @@ export interface MessageTemplate {
   name: string;
   content: string;
   category?: string;
+  media_url?: string;
+  media_type?: 'image' | 'video' | 'audio';
   created_at: string;
   updated_at: string;
 }
@@ -187,7 +189,10 @@ export function useTemplates() {
       .from('message_templates')
       .select('*')
       .order('updated_at', { ascending: false });
-    setTemplates(data || []);
+    setTemplates((data || []).map(t => ({
+      ...t,
+      media_type: t.media_type as MessageTemplate['media_type']
+    })));
     setLoading(false);
   }, [user]);
 
@@ -195,21 +200,43 @@ export function useTemplates() {
     fetchTemplates();
   }, [fetchTemplates]);
 
-  const addTemplate = async (name: string, content: string, category?: string) => {
+  const addTemplate = async (
+    name: string, 
+    content: string, 
+    category?: string,
+    options?: { media_url?: string; media_type?: 'image' | 'video' | 'audio' }
+  ) => {
     if (!user) return { error: new Error('Not authenticated') };
     const { data, error } = await supabase
       .from('message_templates')
-      .insert({ name, content, category, user_id: user.id })
+      .insert({ 
+        name, 
+        content, 
+        category, 
+        user_id: user.id,
+        media_url: options?.media_url || null,
+        media_type: options?.media_type || null
+      })
       .select()
       .single();
     if (!error) fetchTemplates();
     return { data, error };
   };
 
-  const updateTemplate = async (id: string, name: string, content: string, category?: string) => {
+  const updateTemplate = async (
+    id: string, 
+    name: string, 
+    content: string, 
+    category?: string,
+    options?: { media_url?: string | null; media_type?: 'image' | 'video' | 'audio' | null }
+  ) => {
+    const updates: Record<string, unknown> = { name, content, category };
+    if (options?.media_url !== undefined) updates.media_url = options.media_url;
+    if (options?.media_type !== undefined) updates.media_type = options.media_type;
+    
     const { error } = await supabase
       .from('message_templates')
-      .update({ name, content, category })
+      .update(updates)
       .eq('id', id);
     if (!error) fetchTemplates();
     return { error };
@@ -224,7 +251,26 @@ export function useTemplates() {
     return { error };
   };
 
-  return { templates, loading, fetchTemplates, addTemplate, updateTemplate, deleteTemplate };
+  const uploadTemplateMedia = async (file: File): Promise<{ url: string | null; error: Error | null }> => {
+    if (!user) return { url: null, error: new Error('Not authenticated') };
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/templates/${Date.now()}.${fileExt}`;
+    
+    const { error } = await supabase.storage
+      .from('campaign-media')
+      .upload(fileName, file);
+    
+    if (error) return { url: null, error };
+    
+    const { data } = supabase.storage
+      .from('campaign-media')
+      .getPublicUrl(fileName);
+    
+    return { url: data.publicUrl, error: null };
+  };
+
+  return { templates, loading, fetchTemplates, addTemplate, updateTemplate, deleteTemplate, uploadTemplateMedia };
 }
 
 // Campaigns Hook

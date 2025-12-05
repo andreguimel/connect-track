@@ -235,7 +235,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
 
     setIsSending(true);
 
-    // Upload media if exists
+    // Upload media if new file exists, otherwise use preview URL (from template)
     let mediaUrl: string | undefined;
     if (mediaFile) {
       setUploadingMedia(true);
@@ -251,6 +251,9 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         return;
       }
       mediaUrl = url;
+    } else if (mediaPreview && mediaType) {
+      // Use template media URL directly
+      mediaUrl = mediaPreview;
     }
 
     const scheduledAt = isScheduled ? new Date(`${scheduledDate}T${scheduledTime}`).toISOString() : undefined;
@@ -341,7 +344,17 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                         const template = templates.find(t => t.id === value);
                         if (template) {
                           setMessage(template.content);
+                          // Apply template media
+                          if (template.media_url && template.media_type) {
+                            setMediaPreview(template.media_url);
+                            setMediaType(template.media_type);
+                            setMediaFile(null); // Clear file since we're using URL
+                          } else {
+                            clearMedia();
+                          }
                         }
+                      } else {
+                        clearMedia();
                       }
                     }}
                   >
@@ -357,6 +370,9 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                             {template.name}
                             {template.category && (
                               <span className="text-xs text-muted-foreground">({template.category})</span>
+                            )}
+                            {template.media_type && (
+                              <span className="text-xs text-muted-foreground">📎</span>
                             )}
                           </div>
                         </SelectItem>
