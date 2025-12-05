@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.variate-message]
 verify_jwt = false
+
+[functions.evolution-api]
+verify_jwt = false

@@ -160,6 +160,45 @@ export type Database = {
           },
         ]
       }
+      evolution_instances: {
+        Row: {
+          api_key: string
+          api_url: string
+          created_at: string
+          id: string
+          instance_name: string
+          name: string
+          phone_number: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          api_url: string
+          created_at?: string
+          id?: string
+          instance_name: string
+          name: string
+          phone_number?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          api_url?: string
+          created_at?: string
+          id?: string
+          instance_name?: string
+          name?: string
+          phone_number?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       message_templates: {
         Row: {
           category: string | null
