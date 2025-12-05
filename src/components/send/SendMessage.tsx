@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { useContacts, useGroups, useTemplates, useCampaigns, Campaign } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
+import { getAntiBanSettings, getRandomDelay } from '@/lib/antiban';
 import { WhatsAppPreview } from './WhatsAppPreview';
 import {
   Select,
@@ -211,7 +212,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         });
 
         await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Apply anti-ban delay between messages
+        const antiBanSettings = getAntiBanSettings();
+        const delay = getRandomDelay(antiBanSettings);
+        console.log(`Anti-ban delay: ${delay}ms (${antiBanSettings.minDelaySeconds}s - ${antiBanSettings.maxDelaySeconds}s)`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       } catch (error) {
         console.error('Error sending message:', error);
         await updateCampaignContactStatus(
