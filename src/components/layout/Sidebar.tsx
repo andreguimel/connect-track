@@ -5,7 +5,8 @@ import {
   MessageSquare, 
   Send, 
   Settings,
-  Zap
+  Zap,
+  FileText
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -16,6 +17,7 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'contacts', label: 'Contatos', icon: Users },
+  { id: 'templates', label: 'Templates', icon: FileText },
   { id: 'campaigns', label: 'Campanhas', icon: MessageSquare },
   { id: 'send', label: 'Enviar', icon: Send },
   { id: 'settings', label: 'Configurações', icon: Settings },

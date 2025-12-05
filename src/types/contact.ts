@@ -5,6 +5,15 @@ export interface ContactGroup {
   createdAt: Date;
 }
 
+export interface MessageTemplate {
+  id: string;
+  name: string;
+  content: string;
+  category?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Contact {
   id: string;
   name: string;

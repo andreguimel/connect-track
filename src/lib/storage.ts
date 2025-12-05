@@ -1,10 +1,58 @@
-import { Contact, Campaign, CampaignContact, ContactGroup } from '@/types/contact';
+import { Contact, Campaign, CampaignContact, ContactGroup, MessageTemplate } from '@/types/contact';
 
 const CONTACTS_KEY = 'whatsapp_contacts';
 const CAMPAIGNS_KEY = 'whatsapp_campaigns';
 const GROUPS_KEY = 'whatsapp_groups';
+const TEMPLATES_KEY = 'whatsapp_templates';
 
 export const generateId = () => crypto.randomUUID();
+
+// Templates
+export const getTemplates = (): MessageTemplate[] => {
+  const data = localStorage.getItem(TEMPLATES_KEY);
+  if (!data) return [];
+  return JSON.parse(data).map((t: MessageTemplate) => ({
+    ...t,
+    createdAt: new Date(t.createdAt),
+    updatedAt: new Date(t.updatedAt),
+  }));
+};
+
+export const saveTemplates = (templates: MessageTemplate[]) => {
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
+};
+
+export const addTemplate = (name: string, content: string, category?: string): MessageTemplate => {
+  const templates = getTemplates();
+  const template: MessageTemplate = {
+    id: generateId(),
+    name,
+    content,
+    category,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  templates.push(template);
+  saveTemplates(templates);
+  return template;
+};
+
+export const updateTemplate = (id: string, name: string, content: string, category?: string) => {
+  const templates = getTemplates();
+  const index = templates.findIndex(t => t.id === id);
+  if (index !== -1) {
+    templates[index].name = name;
+    templates[index].content = content;
+    templates[index].category = category;
+    templates[index].updatedAt = new Date();
+    saveTemplates(templates);
+  }
+};
+
+export const deleteTemplate = (id: string) => {
+  const templates = getTemplates().filter(t => t.id !== id);
+  saveTemplates(templates);
+};
 
 // Groups
 export const getGroups = (): ContactGroup[] => {
