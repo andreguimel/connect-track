@@ -66,7 +66,19 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
   };
 
   const updateAntiBan = (key: keyof AntiBanSettings, value: number | boolean) => {
-    setAntiBanSettings(prev => ({ ...prev, [key]: value }));
+    const newSettings = { ...antiBanSettings, [key]: value };
+    setAntiBanSettings(newSettings);
+    
+    // Auto-save for toggle changes (better UX)
+    if (typeof value === 'boolean') {
+      saveAntiBanSettings(newSettings);
+      toast({
+        title: key === 'enableAIVariation' 
+          ? (value ? "Variação por IA ativada" : "Variação por IA desativada")
+          : (value ? "Opção ativada" : "Opção desativada"),
+        description: "Configuração salva automaticamente",
+      });
+    }
   };
 
   const handleTestMessage = async () => {
