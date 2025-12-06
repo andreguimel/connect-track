@@ -258,6 +258,48 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          mercadopago_payer_id: string | null
+          mercadopago_subscription_id: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          subscription_ends_at: string | null
+          subscription_started_at: string | null
+          trial_ends_at: string
+          trial_started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mercadopago_payer_id?: string | null
+          mercadopago_subscription_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          subscription_ends_at?: string | null
+          subscription_started_at?: string | null
+          trial_ends_at?: string
+          trial_started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mercadopago_payer_id?: string | null
+          mercadopago_subscription_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          subscription_ends_at?: string | null
+          subscription_started_at?: string | null
+          trial_ends_at?: string
+          trial_started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_groups: {
         Row: {
           created_at: string
@@ -307,7 +349,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      subscription_status: "trial" | "active" | "expired" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -434,6 +476,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_status: ["trial", "active", "expired", "cancelled"],
+    },
   },
 } as const
