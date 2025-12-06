@@ -750,11 +750,11 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="contacts" className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Contatos ({selectedContactIds.size})
+                  Contatos ({contacts.length})
                 </TabsTrigger>
                 <TabsTrigger value="groups" className="flex items-center gap-2">
                   <Users2 className="h-4 w-4" />
-                  Grupos ({selectedGroupJids.size})
+                  Grupos ({whatsappGroups.length})
                 </TabsTrigger>
               </TabsList>
 
