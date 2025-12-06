@@ -135,15 +135,23 @@ serve(async (req) => {
       const data = await response.json();
       console.log('Fetched participants:', data);
 
-      // Map participants to our format
+      // Map participants to our format - Evolution API returns 'jid' for the WhatsApp ID
       const participants = data?.participants || data || [];
+      console.log('Participants count:', participants.length);
+      console.log('First participant sample:', JSON.stringify(participants[0]));
+      
       contacts = participants
-        .filter((p: { id?: string }) => p.id && p.id.endsWith('@s.whatsapp.net'))
-        .map((p: { id: string; admin?: string }) => ({
-          phoneNumber: p.id.replace('@s.whatsapp.net', ''),
-          name: '', // Participants don't have names directly, we'll fetch them later
+        .filter((p: { id?: string; jid?: string }) => {
+          const whatsappId = p.jid || p.id;
+          return whatsappId && whatsappId.endsWith('@s.whatsapp.net');
+        })
+        .map((p: { id?: string; jid?: string; admin?: string | null }) => ({
+          phoneNumber: (p.jid || p.id || '').replace('@s.whatsapp.net', ''),
+          name: '', // Participants don't have names directly
           isAdmin: p.admin === 'admin' || p.admin === 'superadmin',
         }));
+      
+      console.log('Mapped participants count:', contacts.length);
 
     } else {
       throw new Error('Invalid action. Use "fetchContacts" or "fetchGroupParticipants"');
