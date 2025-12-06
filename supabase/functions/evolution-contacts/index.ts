@@ -117,6 +117,33 @@ serve(async (req) => {
 
       console.log('Fetching participants for group:', groupJid);
 
+      // Fetch contacts first to get names
+      const contactsResponse = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
+        method: 'POST',
+        headers: {
+          'apikey': evolutionApiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+
+      // Build a map of phone -> name from contacts
+      const contactsMap = new Map<string, string>();
+      if (contactsResponse.ok) {
+        const contactsData = await contactsResponse.json();
+        const contactsArray = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || contactsData?.data || []);
+        for (const c of contactsArray) {
+          if (c.remoteJid && c.remoteJid.endsWith('@s.whatsapp.net')) {
+            const phone = c.remoteJid.replace('@s.whatsapp.net', '');
+            const name = c.pushName || c.name || '';
+            if (name) {
+              contactsMap.set(phone, name);
+            }
+          }
+        }
+        console.log('Built contacts map with', contactsMap.size, 'entries');
+      }
+
       // Fetch group participants from Evolution API
       const response = await fetch(`${apiUrl}/group/participants/${instance.instance_name}?groupJid=${encodeURIComponent(groupJid)}`, {
         method: 'GET',
@@ -133,23 +160,25 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      console.log('Fetched participants:', data);
+      console.log('Fetched participants count:', data?.participants?.length || 0);
 
       // Map participants to our format - Evolution API returns 'jid' for the WhatsApp ID
       const participants = data?.participants || data || [];
-      console.log('Participants count:', participants.length);
-      console.log('First participant sample:', JSON.stringify(participants[0]));
       
       contacts = participants
         .filter((p: { id?: string; jid?: string }) => {
           const whatsappId = p.jid || p.id;
           return whatsappId && whatsappId.endsWith('@s.whatsapp.net');
         })
-        .map((p: { id?: string; jid?: string; admin?: string | null }) => ({
-          phoneNumber: (p.jid || p.id || '').replace('@s.whatsapp.net', ''),
-          name: '', // Participants don't have names directly
-          isAdmin: p.admin === 'admin' || p.admin === 'superadmin',
-        }));
+        .map((p: { id?: string; jid?: string; admin?: string | null }) => {
+          const phoneNumber = (p.jid || p.id || '').replace('@s.whatsapp.net', '');
+          const name = contactsMap.get(phoneNumber) || '';
+          return {
+            phoneNumber,
+            name,
+            isAdmin: p.admin === 'admin' || p.admin === 'superadmin',
+          };
+        });
       
       console.log('Mapped participants count:', contacts.length);
 
