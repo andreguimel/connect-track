@@ -184,12 +184,12 @@ export function ImportGroupParticipants({
               {newContactsCount > 0 && (
                 <div className="space-y-2">
                   <Label>Categoria para importar (opcional)</Label>
-                  <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                  <Select value={selectedGroupId || "none"} onValueChange={(v) => setSelectedGroupId(v === "none" ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Sem categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sem categoria</SelectItem>
+                      <SelectItem value="none">Sem categoria</SelectItem>
                       {groups.map((group) => (
                         <SelectItem key={group.id} value={group.id}>
                           <div className="flex items-center gap-2">
