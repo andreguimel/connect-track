@@ -66,28 +66,66 @@ export function ExportReports() {
   };
 
   const fetchCampaignContacts = async (campaignId: string): Promise<CampaignContactDetail[]> => {
-    const { data } = await supabase
+    // Fetch campaign contacts
+    const { data: campaignContacts } = await supabase
       .from('campaign_contacts')
-      .select(`
-        id,
-        contact_id,
-        status,
-        error,
-        sent_at,
-        contacts (
-          name,
-          phone
-        )
-      `)
+      .select('id, contact_id, status, error, sent_at, group_jid, recipient_type')
       .eq('campaign_id', campaignId);
 
-    return (data || []).map(item => ({
+    if (!campaignContacts || campaignContacts.length === 0) {
+      return [];
+    }
+
+    // Get unique contact IDs (only for individual contacts, not groups)
+    const contactIds = campaignContacts
+      .filter(cc => cc.recipient_type === 'contact' && cc.contact_id)
+      .map(cc => cc.contact_id);
+
+    // Fetch contact details separately
+    let contactsMap: Record<string, { name: string; phone: string }> = {};
+    if (contactIds.length > 0) {
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name, phone')
+        .in('id', contactIds);
+
+      if (contacts) {
+        contactsMap = contacts.reduce((acc, contact) => {
+          acc[contact.id] = { name: contact.name, phone: contact.phone };
+          return acc;
+        }, {} as Record<string, { name: string; phone: string }>);
+      }
+    }
+
+    // Fetch group names for group recipients
+    const groupJids = campaignContacts
+      .filter(cc => cc.recipient_type === 'group' && cc.group_jid)
+      .map(cc => cc.group_jid);
+
+    let groupsMap: Record<string, string> = {};
+    if (groupJids.length > 0) {
+      const { data: groups } = await supabase
+        .from('whatsapp_groups')
+        .select('group_jid, name')
+        .in('group_jid', groupJids);
+
+      if (groups) {
+        groupsMap = groups.reduce((acc, group) => {
+          acc[group.group_jid] = group.name;
+          return acc;
+        }, {} as Record<string, string>);
+      }
+    }
+
+    return campaignContacts.map(item => ({
       id: item.id,
       contact_id: item.contact_id,
       status: item.status,
       error: item.error || undefined,
       sent_at: item.sent_at || undefined,
-      contact: item.contacts as { name: string; phone: string } | undefined
+      contact: item.recipient_type === 'group' && item.group_jid
+        ? { name: groupsMap[item.group_jid] || 'Grupo', phone: item.group_jid }
+        : contactsMap[item.contact_id] || undefined
     }));
   };
 
