@@ -220,6 +220,34 @@ export function useEvolutionInstances() {
     }
   };
 
+  const renameInstance = async (instance: EvolutionInstance, newName: string) => {
+    try {
+      const { error } = await supabase
+        .from('evolution_instances')
+        .update({ name: newName })
+        .eq('id', instance.id);
+
+      if (error) throw error;
+
+      await fetchInstances();
+      
+      toast({
+        title: 'Nome atualizado',
+        description: `Conexão renomeada para "${newName}".`,
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error('Error renaming instance:', error);
+      toast({
+        title: 'Erro ao renomear',
+        description: error.message || 'Falha ao renomear instância',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   return {
     instances,
     loading,
@@ -229,5 +257,6 @@ export function useEvolutionInstances() {
     checkStatus,
     disconnectInstance,
     deleteInstance,
+    renameInstance,
   };
 }

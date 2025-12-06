@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, X } from 'lucide-react';
+import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useEvolutionInstances, EvolutionInstance } from '@/hooks/useEvolutionInstances';
 import {
@@ -31,7 +32,8 @@ export function EvolutionInstances() {
     getQRCode, 
     checkStatus, 
     disconnectInstance, 
-    deleteInstance 
+    deleteInstance,
+    renameInstance 
   } = useEvolutionInstances();
   
   const [showQRDialog, setShowQRDialog] = useState(false);
@@ -41,6 +43,8 @@ export function EvolutionInstances() {
   const [isCreating, setIsCreating] = useState(false);
   const [isLoadingQR, setIsLoadingQR] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
+  const [editingInstance, setEditingInstance] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
   
   // Auto-refresh status for connecting instances
   useEffect(() => {
@@ -226,7 +230,59 @@ export function EvolutionInstances() {
                   <Phone className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">{instance.name}</p>
+                  {editingInstance === instance.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="h-8 w-40"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            renameInstance(instance, editName);
+                            setEditingInstance(null);
+                          } else if (e.key === 'Escape') {
+                            setEditingInstance(null);
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          renameInstance(instance, editName);
+                          setEditingInstance(null);
+                        }}
+                      >
+                        <Check className="h-4 w-4 text-success" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setEditingInstance(null)}
+                      >
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground">{instance.name}</p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          setEditingInstance(instance.id);
+                          setEditName(instance.name);
+                        }}
+                        title="Editar nome"
+                      >
+                        <Pencil className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground font-mono">
                     {instance.instance_name}
                   </p>
