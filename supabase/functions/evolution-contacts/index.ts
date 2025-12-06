@@ -87,19 +87,27 @@ serve(async (req) => {
         throw new Error(`Failed to fetch contacts: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('Fetched contacts count:', data?.length || 0);
+      const rawData = await response.json();
+      console.log('Raw Evolution API response type:', typeof rawData, Array.isArray(rawData));
+      console.log('Raw data sample:', JSON.stringify(rawData?.slice?.(0, 2) || rawData).substring(0, 500));
+      
+      // Handle different response formats from Evolution API
+      const contactsArray = Array.isArray(rawData) ? rawData : (rawData?.contacts || rawData?.data || []);
+      console.log('Fetched contacts count:', contactsArray.length);
 
       // Map contacts to our format
-      contacts = (data || [])
-        .filter((contact: { id: string; pushName?: string; name?: string }) => {
+      contacts = contactsArray
+        .filter((contact: { id?: string; remoteJid?: string; pushName?: string; name?: string }) => {
           // Filter only individual contacts (not groups)
-          return contact.id && contact.id.endsWith('@s.whatsapp.net');
+          const jid = contact.id || contact.remoteJid || '';
+          return jid && jid.endsWith('@s.whatsapp.net');
         })
-        .map((contact: { id: string; pushName?: string; name?: string }) => ({
-          phoneNumber: contact.id.replace('@s.whatsapp.net', ''),
+        .map((contact: { id?: string; remoteJid?: string; pushName?: string; name?: string }) => ({
+          phoneNumber: (contact.id || contact.remoteJid || '').replace('@s.whatsapp.net', ''),
           name: contact.pushName || contact.name || 'Sem nome',
         }));
+      
+      console.log('Mapped contacts count:', contacts.length);
 
     } else if (action === 'fetchGroupParticipants') {
       if (!groupJid) {
