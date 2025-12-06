@@ -7,12 +7,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export function PaywallOverlay() {
-  const { hasAccess } = useSubscription();
+  const { hasAccess, loading } = useSubscription();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  if (hasAccess()) return null;
+  // Don't show paywall while loading subscription data
+  if (loading || hasAccess()) return null;
 
   const handleSubscribe = async () => {
     if (!user?.email) {
