@@ -16,6 +16,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { getAntiBanSettings, getRandomDelay } from '@/lib/antiban';
 import { WhatsAppPreview } from './WhatsAppPreview';
+import { SendConfirmationDialog } from './SendConfirmationDialog';
 import {
   Select,
   SelectContent,
@@ -61,6 +62,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | 'document' | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Set default instance when instances load
@@ -321,14 +323,14 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
 
   const totalSelectedRecipients = selectedContactIds.size + selectedGroupJids.size;
 
-  const handleCreateCampaign = useCallback(async () => {
+  const validateCampaign = useCallback(() => {
     if (!hasAccess()) {
       toast({
         title: "Acesso bloqueado",
         description: "Seu período de teste expirou. Assine para continuar.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     const limits = getLimits();
@@ -339,7 +341,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         description: `Você atingiu o limite de ${limits.maxCampaigns} campanhas do período de teste.`,
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (!campaignName.trim()) {
@@ -348,7 +350,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         description: "Informe um nome para a campanha",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (!message.trim()) {
@@ -357,7 +359,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         description: "Escreva a mensagem que será enviada",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (totalSelectedRecipients === 0) {
@@ -366,7 +368,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         description: "Selecione pelo menos um contato ou grupo para enviar",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     // Check trial contact limit
@@ -376,7 +378,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         description: `Durante o período de teste, você pode enviar para no máximo ${limits.maxContactsPerCampaign} destinatários por campanha.`,
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (isScheduled && (!scheduledDate || !scheduledTime)) {
@@ -385,9 +387,20 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         description: "Informe a data e hora do agendamento",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
+    return true;
+  }, [hasAccess, canCreateCampaign, getLimits, isSubscriptionActive, campaignName, message, totalSelectedRecipients, isScheduled, scheduledDate, scheduledTime, toast]);
+
+  const handleRequestSend = useCallback(() => {
+    if (validateCampaign()) {
+      setShowConfirmDialog(true);
+    }
+  }, [validateCampaign]);
+
+  const handleConfirmedSend = useCallback(async () => {
+    setShowConfirmDialog(false);
     setIsSending(true);
 
     // Upload media if new file exists, otherwise use preview URL (from template)
@@ -461,7 +474,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setScheduledDate('');
     setScheduledTime('');
     clearMedia();
-  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients, hasAccess, canCreateCampaign, isSubscriptionActive, getLimits]);
+  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients]);
 
   const filteredSelectedCount = filteredContacts.filter(c => selectedContactIds.has(c.id)).length;
 
@@ -736,7 +749,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           <Button
             size="xl"
             className="w-full"
-            onClick={handleCreateCampaign}
+            onClick={handleRequestSend}
             disabled={isSending || uploadingMedia || !webhookUrl}
           >
             {isSending || uploadingMedia ? (
@@ -981,6 +994,15 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <SendConfirmationDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        onConfirm={handleConfirmedSend}
+        recipientCount={totalSelectedRecipients}
+        isScheduled={isScheduled}
+      />
     </div>
   );
 }
