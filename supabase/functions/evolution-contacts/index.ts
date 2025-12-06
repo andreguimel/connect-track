@@ -95,15 +95,16 @@ serve(async (req) => {
       const contactsArray = Array.isArray(rawData) ? rawData : (rawData?.contacts || rawData?.data || []);
       console.log('Fetched contacts count:', contactsArray.length);
 
-      // Map contacts to our format
+      // Map contacts to our format - Evolution API uses remoteJid for WhatsApp IDs
       contacts = contactsArray
-        .filter((contact: { id?: string; remoteJid?: string; pushName?: string; name?: string }) => {
+        .filter((contact: { remoteJid?: string; isGroup?: boolean }) => {
           // Filter only individual contacts (not groups)
-          const jid = contact.id || contact.remoteJid || '';
-          return jid && jid.endsWith('@s.whatsapp.net');
+          return contact.remoteJid && 
+                 contact.remoteJid.endsWith('@s.whatsapp.net') && 
+                 !contact.isGroup;
         })
-        .map((contact: { id?: string; remoteJid?: string; pushName?: string; name?: string }) => ({
-          phoneNumber: (contact.id || contact.remoteJid || '').replace('@s.whatsapp.net', ''),
+        .map((contact: { remoteJid: string; pushName?: string; name?: string }) => ({
+          phoneNumber: contact.remoteJid.replace('@s.whatsapp.net', ''),
           name: contact.pushName || contact.name || 'Sem nome',
         }));
       
