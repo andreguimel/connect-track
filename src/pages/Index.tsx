@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { ContactsManager } from '@/components/contacts/ContactsManager';
@@ -6,7 +7,10 @@ import { CampaignsList } from '@/components/campaigns/CampaignsList';
 import { SendMessage } from '@/components/send/SendMessage';
 import { Settings } from '@/components/settings/Settings';
 import { TemplatesManager } from '@/components/templates/TemplatesManager';
+import { SubscriptionBanner } from '@/components/subscription/SubscriptionBanner';
+import { PaywallOverlay } from '@/components/subscription/PaywallOverlay';
 import { useCampaigns, Campaign } from '@/hooks/useData';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -24,12 +28,37 @@ const N8N_WEBHOOK_URL = 'https://oito.codigopro.tech/webhook/70343adc-43eb-4015-
 const Index = () => {
   const { toast } = useToast();
   const { updateCampaign, getCampaignContacts, updateCampaignContactStatus, fetchCampaigns } = useCampaigns();
+  const { refetch: refetchSubscription } = useSubscription();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [webhookUrl, setWebhookUrl] = useState(() => {
     return localStorage.getItem(WEBHOOK_STORAGE_KEY) || N8N_WEBHOOK_URL;
   });
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSending, setIsSending] = useState(false);
+
+  // Handle payment callback
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (payment === 'success') {
+      toast({
+        title: "Pagamento confirmado!",
+        description: "Sua assinatura foi ativada com sucesso.",
+      });
+      refetchSubscription();
+    } else if (payment === 'failure') {
+      toast({
+        title: "Pagamento não concluído",
+        description: "O pagamento não foi processado. Tente novamente.",
+        variant: "destructive",
+      });
+    } else if (payment === 'pending') {
+      toast({
+        title: "Pagamento pendente",
+        description: "Seu pagamento está sendo processado.",
+      });
+    }
+  }, [searchParams, toast, refetchSubscription]);
 
   const handleWebhookChange = (url: string) => {
     setWebhookUrl(url);
@@ -207,9 +236,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <PaywallOverlay />
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="pl-64">
-        <div className="container max-w-6xl py-8">
+        <div className="container max-w-6xl py-8 space-y-6">
+          <SubscriptionBanner />
           {renderContent()}
         </div>
       </main>

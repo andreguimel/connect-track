@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw } from 'lucide-react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useContacts, useGroups, useTemplates, useCampaigns, Campaign } from '@/hooks/useData';
 import { useEvolutionInstances, EvolutionInstance } from '@/hooks/useEvolutionInstances';
 import { useWhatsAppGroups, WhatsAppGroup } from '@/hooks/useWhatsAppGroups';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { getAntiBanSettings, getRandomDelay } from '@/lib/antiban';
 import { WhatsAppPreview } from './WhatsAppPreview';
@@ -36,6 +37,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const { createCampaign, updateCampaign, getCampaignContacts, updateCampaignContactStatus, uploadCampaignMedia } = useCampaigns();
   const { instances } = useEvolutionInstances();
   const { groups: whatsappGroups, syncing, syncGroups, fetchGroups } = useWhatsAppGroups();
+  const { canCreateCampaign, getLimits, hasAccess, isSubscriptionActive } = useSubscription();
+  const limits = getLimits();
   
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [selectedGroupJids, setSelectedGroupJids] = useState<Set<string>>(new Set());
@@ -320,6 +323,24 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const totalSelectedRecipients = selectedContactIds.size + selectedGroupJids.size;
 
   const handleCreateCampaign = useCallback(async () => {
+    if (!hasAccess()) {
+      toast({
+        title: "Acesso bloqueado",
+        description: "Seu período de teste expirou. Assine para continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!canCreateCampaign()) {
+      toast({
+        title: "Limite de campanhas atingido",
+        description: `Você atingiu o limite de ${limits.maxCampaigns} campanhas do período de teste.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!campaignName.trim()) {
       toast({
         title: "Nome obrigatório",
@@ -342,6 +363,16 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       toast({
         title: "Selecione destinatários",
         description: "Selecione pelo menos um contato ou grupo para enviar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check trial contact limit
+    if (!isSubscriptionActive() && totalSelectedRecipients > limits.maxContactsPerCampaign) {
+      toast({
+        title: "Limite de contatos excedido",
+        description: `Durante o período de teste, você pode enviar para no máximo ${limits.maxContactsPerCampaign} destinatários por campanha.`,
         variant: "destructive",
       });
       return;

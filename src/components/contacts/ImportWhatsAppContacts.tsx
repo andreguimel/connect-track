@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Smartphone, Loader2, UserCheck, UserPlus, Users, UsersRound } from 'lucide-react';
+import { Smartphone, Loader2, UserCheck, UserPlus, Users, UsersRound, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -21,10 +21,17 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useEvolutionInstances } from '@/hooks/useEvolutionInstances';
 import { useWhatsAppContacts, WhatsAppContact } from '@/hooks/useWhatsAppContacts';
 import { useWhatsAppGroups, WhatsAppGroup } from '@/hooks/useWhatsAppGroups';
 import { useGroups } from '@/hooks/useData';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface ImportWhatsAppContactsProps {
   onImportComplete?: () => void;
@@ -35,6 +42,8 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
   const { contacts, loading, fetchWhatsAppContacts, fetchGroupParticipants, importContacts, clearContacts } = useWhatsAppContacts();
   const { groups: whatsappGroups, syncing, syncGroups, fetchGroups } = useWhatsAppGroups();
   const { groups: categories } = useGroups();
+  const { getLimits } = useSubscription();
+  const limits = getLimits();
 
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('contacts');
@@ -223,6 +232,25 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
       )}
     </>
   );
+
+  // If import is disabled during trial, show locked button
+  if (!limits.canImportWhatsApp) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" disabled className="opacity-60">
+              <Lock className="mr-2 h-4 w-4" />
+              Importar do WhatsApp
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Disponível apenas para assinantes</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
