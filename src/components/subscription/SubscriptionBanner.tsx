@@ -7,13 +7,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export function SubscriptionBanner() {
-  const { subscription, isTrialActive, isSubscriptionActive, hasAccess, getRemainingTrialDays, getLimits, campaignCount } = useSubscription();
+  const { subscription, loading, isTrialActive, isSubscriptionActive, hasAccess, getRemainingTrialDays, getLimits, campaignCount } = useSubscription();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 
-  if (!subscription || isDismissed) return null;
+  // Don't show banner while loading or if no subscription
+  if (loading || !subscription || isDismissed) return null;
 
   const handleSubscribe = async () => {
     if (!user?.email) {
