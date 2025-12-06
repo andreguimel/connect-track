@@ -404,17 +404,40 @@ export function useCampaigns() {
   };
 
   const getCampaignContacts = async (campaignId: string): Promise<CampaignContact[]> => {
+    // First get all campaign contacts
     const { data } = await supabase
       .from('campaign_contacts')
-      .select(`
-        *,
-        contact:contacts(*)
-      `)
+      .select('*')
       .eq('campaign_id', campaignId);
-    return (data || []).map(cc => ({
+    
+    if (!data) return [];
+    
+    // Get contact IDs for non-group recipients
+    const contactIds = data
+      .filter(cc => cc.recipient_type !== 'group')
+      .map(cc => cc.contact_id);
+    
+    // Fetch contacts separately if there are any
+    let contactsMap: Record<string, Contact> = {};
+    if (contactIds.length > 0) {
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('*')
+        .in('id', contactIds);
+      
+      if (contacts) {
+        contactsMap = contacts.reduce((acc, contact) => {
+          acc[contact.id] = contact;
+          return acc;
+        }, {} as Record<string, Contact>);
+      }
+    }
+    
+    return data.map(cc => ({
       ...cc,
       status: cc.status as CampaignContact['status'],
       recipient_type: (cc.recipient_type || 'contact') as 'contact' | 'group',
+      contact: cc.recipient_type !== 'group' ? contactsMap[cc.contact_id] : undefined,
     }));
   };
 
