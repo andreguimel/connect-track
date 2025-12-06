@@ -12,9 +12,17 @@ export interface WhatsAppContact {
 
 export function useWhatsAppContacts() {
   const { toast } = useToast();
-  const { contacts: existingContacts, addContacts } = useContacts();
+  const { addContacts } = useContacts();
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<WhatsAppContact[]>([]);
+
+  // Helper function to get existing contacts fresh from database
+  const getExistingPhones = async (): Promise<Set<string>> => {
+    const { data } = await supabase
+      .from('contacts')
+      .select('phone');
+    return new Set((data || []).map(c => c.phone));
+  };
 
   const fetchWhatsAppContacts = useCallback(async (instanceId: string): Promise<WhatsAppContact[]> => {
     setLoading(true);
@@ -27,8 +35,8 @@ export function useWhatsAppContacts() {
         throw new Error(data?.error || error?.message || 'Erro ao buscar contatos');
       }
 
-      // Check which contacts already exist
-      const existingPhones = new Set(existingContacts.map(c => c.phone));
+      // Check which contacts already exist (fresh from database)
+      const existingPhones = await getExistingPhones();
       const contactsWithStatus = (data.contacts || []).map((c: WhatsAppContact) => ({
         ...c,
         alreadyExists: existingPhones.has(c.phoneNumber),
@@ -48,7 +56,7 @@ export function useWhatsAppContacts() {
     } finally {
       setLoading(false);
     }
-  }, [existingContacts, toast]);
+  }, [toast]);
 
   const fetchGroupParticipants = useCallback(async (instanceId: string, groupJid: string): Promise<WhatsAppContact[]> => {
     setLoading(true);
@@ -61,8 +69,8 @@ export function useWhatsAppContacts() {
         throw new Error(data?.error || error?.message || 'Erro ao buscar participantes');
       }
 
-      // Check which contacts already exist
-      const existingPhones = new Set(existingContacts.map(c => c.phone));
+      // Check which contacts already exist (fresh from database)
+      const existingPhones = await getExistingPhones();
       const contactsWithStatus = (data.contacts || []).map((c: WhatsAppContact) => ({
         ...c,
         alreadyExists: existingPhones.has(c.phoneNumber),
@@ -82,7 +90,7 @@ export function useWhatsAppContacts() {
     } finally {
       setLoading(false);
     }
-  }, [existingContacts, toast]);
+  }, [toast]);
 
   const importContacts = useCallback(async (
     contactsToImport: WhatsAppContact[],
