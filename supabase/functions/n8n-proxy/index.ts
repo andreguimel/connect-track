@@ -68,9 +68,21 @@ serve(async (req) => {
     const instance = instances[0];
     console.log('Using Evolution instance:', instance.instance_name);
 
-    // Format phone number for WhatsApp
-    const phone = payload.phone?.replace(/\D/g, '');
-    const remoteJid = phone ? `${phone}@s.whatsapp.net` : null;
+    // Determine if recipient is a group or individual contact
+    const isGroup = payload.recipientType === 'group' && payload.groupJid;
+    
+    // Format remoteJid based on recipient type
+    let remoteJid: string | null = null;
+    if (isGroup) {
+      // For groups, use the group JID directly (already includes @g.us)
+      remoteJid = payload.groupJid;
+      console.log('Sending to group:', remoteJid);
+    } else {
+      // For contacts, format phone number for WhatsApp
+      const phone = payload.phone?.replace(/\D/g, '');
+      remoteJid = phone ? `${phone}@s.whatsapp.net` : null;
+      console.log('Sending to contact:', remoteJid);
+    }
 
     // Build enhanced payload with Evolution API credentials
     const enhancedPayload = {
@@ -80,8 +92,9 @@ serve(async (req) => {
       evolutionApiUrl: evolutionApiUrl.replace(/\/$/, ''),
       evolutionInstance: instance.instance_name,
       key: evolutionApiKey,
-      // WhatsApp formatted phone
+      // WhatsApp formatted recipient
       remoteJid,
+      isGroup,
       // Ensure required fields
       isTest: payload.isTest || false,
     };

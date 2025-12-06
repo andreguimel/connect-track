@@ -57,6 +57,8 @@ export interface CampaignContact {
   error?: string;
   sent_at?: string;
   contact?: Contact;
+  recipient_type: 'contact' | 'group';
+  group_jid?: string;
 }
 
 // Contacts Hook
@@ -306,13 +308,17 @@ export function useCampaigns() {
       scheduled_at?: string;
       media_url?: string;
       media_type?: 'image' | 'video' | 'audio' | 'document';
+      groupJids?: string[];
     }
   ) => {
     if (!user) return { campaign: null, error: new Error('Not authenticated') };
     
+    const groupJids = options?.groupJids || [];
+    const totalRecipients = contactIds.length + groupJids.length;
+    
     const stats = {
-      total: contactIds.length,
-      pending: contactIds.length,
+      total: totalRecipients,
+      pending: totalRecipients,
       sent: 0,
       delivered: 0,
       failed: 0,
@@ -335,13 +341,26 @@ export function useCampaigns() {
 
     if (error || !campaign) return { campaign: null, error };
 
-    // Create campaign contacts
+    // Create campaign contacts for individual contacts
     const campaignContacts = contactIds.map(contactId => ({
       campaign_id: campaign.id,
       contact_id: contactId,
+      recipient_type: 'contact',
     }));
 
-    await supabase.from('campaign_contacts').insert(campaignContacts);
+    // Create campaign contacts for groups (using a placeholder contact_id)
+    const campaignGroups = groupJids.map(groupJid => ({
+      campaign_id: campaign.id,
+      contact_id: crypto.randomUUID(), // Placeholder ID for groups
+      recipient_type: 'group',
+      group_jid: groupJid,
+    }));
+
+    const allRecipients = [...campaignContacts, ...campaignGroups];
+    if (allRecipients.length > 0) {
+      await supabase.from('campaign_contacts').insert(allRecipients);
+    }
+    
     fetchCampaigns();
 
     return { campaign, error: null };
@@ -384,7 +403,7 @@ export function useCampaigns() {
     return { error };
   };
 
-  const getCampaignContacts = async (campaignId: string) => {
+  const getCampaignContacts = async (campaignId: string): Promise<CampaignContact[]> => {
     const { data } = await supabase
       .from('campaign_contacts')
       .select(`
@@ -392,7 +411,11 @@ export function useCampaigns() {
         contact:contacts(*)
       `)
       .eq('campaign_id', campaignId);
-    return data || [];
+    return (data || []).map(cc => ({
+      ...cc,
+      status: cc.status as CampaignContact['status'],
+      recipient_type: (cc.recipient_type || 'contact') as 'contact' | 'group',
+    }));
   };
 
   const updateCampaignContactStatus = async (

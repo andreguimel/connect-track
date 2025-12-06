@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi } from 'lucide-react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useContacts, useGroups, useTemplates, useCampaigns, Campaign } from '@/hooks/useData';
 import { useEvolutionInstances, EvolutionInstance } from '@/hooks/useEvolutionInstances';
+import { useWhatsAppGroups, WhatsAppGroup } from '@/hooks/useWhatsAppGroups';
 import { useToast } from '@/hooks/use-toast';
 import { getAntiBanSettings, getRandomDelay } from '@/lib/antiban';
 import { WhatsAppPreview } from './WhatsAppPreview';
@@ -33,8 +35,11 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const { templates } = useTemplates();
   const { createCampaign, updateCampaign, getCampaignContacts, updateCampaignContactStatus, uploadCampaignMedia } = useCampaigns();
   const { instances } = useEvolutionInstances();
+  const { groups: whatsappGroups, syncing, syncGroups, fetchGroups } = useWhatsAppGroups();
   
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [selectedGroupJids, setSelectedGroupJids] = useState<Set<string>>(new Set());
+  const [recipientTab, setRecipientTab] = useState<string>('contacts');
   const [campaignName, setCampaignName] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -64,6 +69,13 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     }
   }, [instances, selectedInstanceId]);
 
+  // Fetch WhatsApp groups when instance changes
+  useEffect(() => {
+    if (selectedInstanceId) {
+      fetchGroups(selectedInstanceId);
+    }
+  }, [selectedInstanceId, fetchGroups]);
+
   const connectedInstances = useMemo(() => 
     instances.filter(i => i.status === 'connected'), 
     [instances]
@@ -90,6 +102,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     return filtered;
   }, [contacts, searchTerm, selectedGroupFilter]);
 
+  const filteredWhatsAppGroups = useMemo(() => {
+    if (!searchTerm) return whatsappGroups;
+    const term = searchTerm.toLowerCase();
+    return whatsappGroups.filter(g => g.name.toLowerCase().includes(term));
+  }, [whatsappGroups, searchTerm]);
+
   const getGroupById = (groupId: string | undefined) => {
     if (!groupId) return null;
     return groups.find(g => g.id === groupId);
@@ -105,15 +123,33 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setSelectedContactIds(newSelected);
   };
 
-  const toggleAll = () => {
-    if (selectedContactIds.size === filteredContacts.length && filteredContacts.length > 0) {
-      const newSelected = new Set(selectedContactIds);
-      filteredContacts.forEach(c => newSelected.delete(c.id));
-      setSelectedContactIds(newSelected);
+  const toggleWhatsAppGroup = (jid: string) => {
+    const newSelected = new Set(selectedGroupJids);
+    if (newSelected.has(jid)) {
+      newSelected.delete(jid);
     } else {
-      const newSelected = new Set(selectedContactIds);
-      filteredContacts.forEach(c => newSelected.add(c.id));
-      setSelectedContactIds(newSelected);
+      newSelected.add(jid);
+    }
+    setSelectedGroupJids(newSelected);
+  };
+
+  const toggleAll = () => {
+    if (recipientTab === 'contacts') {
+      if (selectedContactIds.size === filteredContacts.length && filteredContacts.length > 0) {
+        const newSelected = new Set(selectedContactIds);
+        filteredContacts.forEach(c => newSelected.delete(c.id));
+        setSelectedContactIds(newSelected);
+      } else {
+        const newSelected = new Set(selectedContactIds);
+        filteredContacts.forEach(c => newSelected.add(c.id));
+        setSelectedContactIds(newSelected);
+      }
+    } else {
+      if (selectedGroupJids.size === filteredWhatsAppGroups.length && filteredWhatsAppGroups.length > 0) {
+        setSelectedGroupJids(new Set());
+      } else {
+        setSelectedGroupJids(new Set(filteredWhatsAppGroups.map(g => g.group_jid)));
+      }
     }
   };
 
@@ -169,6 +205,18 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     return instances.find(i => i.id === selectedInstanceId) || null;
   };
 
+  const handleSyncGroups = async () => {
+    if (!selectedInstanceId) {
+      toast({
+        title: "Selecione uma conexão",
+        description: "Selecione uma conexão WhatsApp primeiro",
+        variant: "destructive",
+      });
+      return;
+    }
+    await syncGroups(selectedInstanceId);
+  };
+
   const sendViaWebhook = async (campaign: Campaign) => {
     if (!webhookUrl) {
       toast({
@@ -207,20 +255,24 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
 
     let processed = 0;
     for (const cc of pendingContacts) {
-
       try {
         await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sending');
+
+        // Determine if this is a group or contact
+        const isGroup = cc.recipient_type === 'group';
 
         const { data, error: proxyError } = await supabase.functions.invoke('n8n-proxy', {
           body: {
             webhookUrl,
             payload: {
               key: selectedInstance.api_key,
-              remoteJid: `${cc.contact?.phone}@s.whatsapp.net`,
+              recipientType: cc.recipient_type,
+              groupJid: cc.group_jid,
+              remoteJid: isGroup ? cc.group_jid : `${cc.contact?.phone}@s.whatsapp.net`,
               campaignId: campaign.id,
               contactId: cc.contact_id,
               phone: cc.contact?.phone,
-              name: cc.contact?.name,
+              name: isGroup ? (whatsappGroups.find(g => g.group_jid === cc.group_jid)?.name || 'Grupo') : cc.contact?.name,
               message: campaign.message,
               mediaUrl: campaign.media_url,
               mediaType: campaign.media_type,
@@ -265,6 +317,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     onCampaignCreated();
   };
 
+  const totalSelectedRecipients = selectedContactIds.size + selectedGroupJids.size;
+
   const handleCreateCampaign = useCallback(async () => {
     if (!campaignName.trim()) {
       toast({
@@ -284,10 +338,10 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       return;
     }
 
-    if (selectedContactIds.size === 0) {
+    if (totalSelectedRecipients === 0) {
       toast({
-        title: "Selecione contatos",
-        description: "Selecione pelo menos um contato para enviar",
+        title: "Selecione destinatários",
+        description: "Selecione pelo menos um contato ou grupo para enviar",
         variant: "destructive",
       });
       return;
@@ -327,6 +381,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
 
     const scheduledAt = isScheduled ? new Date(`${scheduledDate}T${scheduledTime}`).toISOString() : undefined;
 
+    // Combine contacts and groups for campaign creation
+    // For groups, we'll use a special format
     const { campaign, error } = await createCampaign(
       campaignName,
       message,
@@ -335,6 +391,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         scheduled_at: scheduledAt,
         media_url: mediaUrl,
         media_type: mediaType || undefined,
+        groupJids: Array.from(selectedGroupJids),
       }
     );
 
@@ -352,7 +409,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       title: isScheduled ? "Campanha agendada" : "Campanha criada",
       description: isScheduled 
         ? `Campanha "${campaignName}" agendada para ${scheduledDate} às ${scheduledTime}`
-        : `Campanha "${campaignName}" criada com ${selectedContactIds.size} contatos`,
+        : `Campanha "${campaignName}" criada com ${totalSelectedRecipients} destinatários`,
     });
 
     // Only start sending if not scheduled
@@ -367,11 +424,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setCampaignName('');
     setMessage('');
     setSelectedContactIds(new Set());
+    setSelectedGroupJids(new Set());
     setIsScheduled(false);
     setScheduledDate('');
     setScheduledTime('');
     clearMedia();
-  }, [campaignName, message, selectedContactIds, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus]);
+  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients]);
 
   const filteredSelectedCount = filteredContacts.filter(c => selectedContactIds.has(c.id)).length;
 
@@ -657,12 +715,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
             ) : isScheduled ? (
               <>
                 <Calendar className="mr-2 h-5 w-5" />
-                Agendar Campanha ({selectedContactIds.size} contatos)
+                Agendar Campanha ({totalSelectedRecipients} destinatários)
               </>
             ) : (
               <>
                 <Send className="mr-2 h-5 w-5" />
-                Criar e Enviar Campanha ({selectedContactIds.size} contatos)
+                Criar e Enviar Campanha ({totalSelectedRecipients} destinatários)
               </>
             )}
           </Button>
@@ -675,134 +733,219 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           )}
         </div>
 
-        {/* Right: Contact Selection */}
+        {/* Right: Contact/Group Selection */}
         <div className="rounded-xl border bg-card shadow-sm">
           <div className="border-b p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
-                <h3 className="font-medium text-foreground">Selecionar Contatos</h3>
+                <h3 className="font-medium text-foreground">Selecionar Destinatários</h3>
               </div>
               <span className="text-sm text-muted-foreground">
-                {selectedContactIds.size} de {contacts.length} selecionados
+                {totalSelectedRecipients} selecionados
               </span>
             </div>
-            <div className="mt-4 flex flex-col gap-3">
-              <div className="flex gap-2">
-                <Input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar contatos..."
-                  className="flex-1"
-                />
-                <Button variant="outline" onClick={toggleAll}>
-                  {filteredSelectedCount === filteredContacts.length && filteredContacts.length > 0 ? 'Desmarcar' : 'Selecionar'} Todos
-                </Button>
-              </div>
-              
-              {/* Group Filter */}
-              <div className="flex gap-2 items-center">
-                <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
-                  <SelectTrigger className="flex-1">
-                    <Tag className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Filtrar por grupo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os grupos</SelectItem>
-                    <SelectItem value="none">Sem grupo</SelectItem>
-                    {groups.map((group) => (
-                      <SelectItem key={group.id} value={group.id}>
-                        <div className="flex items-center gap-2">
-                          <div className={`h-3 w-3 rounded-full ${group.color}`} />
-                          {group.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedGroupFilter !== 'all' && (
-                  <Button 
-                    variant="secondary" 
+            
+            <Tabs value={recipientTab} onValueChange={setRecipientTab} className="mt-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="contacts" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Contatos ({selectedContactIds.size})
+                </TabsTrigger>
+                <TabsTrigger value="groups" className="flex items-center gap-2">
+                  <Users2 className="h-4 w-4" />
+                  Grupos ({selectedGroupJids.size})
+                </TabsTrigger>
+              </TabsList>
+
+              <div className="mt-4 flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder={recipientTab === 'contacts' ? "Buscar contatos..." : "Buscar grupos..."}
+                    className="flex-1"
+                  />
+                  <Button variant="outline" onClick={toggleAll}>
+                    {recipientTab === 'contacts' 
+                      ? (filteredSelectedCount === filteredContacts.length && filteredContacts.length > 0 ? 'Desmarcar' : 'Selecionar')
+                      : (selectedGroupJids.size === filteredWhatsAppGroups.length && filteredWhatsAppGroups.length > 0 ? 'Desmarcar' : 'Selecionar')
+                    } Todos
+                  </Button>
+                </div>
+                
+                {recipientTab === 'contacts' && (
+                  <>
+                    {/* Group Filter */}
+                    <div className="flex gap-2 items-center">
+                      <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
+                        <SelectTrigger className="flex-1">
+                          <Tag className="mr-2 h-4 w-4" />
+                          <SelectValue placeholder="Filtrar por grupo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos os grupos</SelectItem>
+                          <SelectItem value="none">Sem grupo</SelectItem>
+                          {groups.map((group) => (
+                            <SelectItem key={group.id} value={group.id}>
+                              <div className="flex items-center gap-2">
+                                <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                                {group.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedGroupFilter !== 'all' && (
+                        <Button 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => selectGroupOnly(selectedGroupFilter)}
+                        >
+                          Selecionar Grupo
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Quick Group Selection */}
+                    {groups.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {groups.map((group) => {
+                          const groupCount = contacts.filter(c => c.group_id === group.id).length;
+                          return (
+                            <button
+                              key={group.id}
+                              type="button"
+                              onClick={() => selectGroupOnly(group.id)}
+                              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:bg-accent"
+                            >
+                              <div className={`h-2.5 w-2.5 rounded-full ${group.color}`} />
+                              {group.name} ({groupCount})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {recipientTab === 'groups' && (
+                  <Button
+                    variant="outline"
                     size="sm"
-                    onClick={() => selectGroupOnly(selectedGroupFilter)}
+                    onClick={handleSyncGroups}
+                    disabled={syncing || !selectedInstanceId}
                   >
-                    Selecionar Grupo
+                    {syncing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Sincronizar Grupos do WhatsApp
                   </Button>
                 )}
               </div>
 
-              {/* Quick Group Selection */}
-              {groups.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {groups.map((group) => {
-                    const groupCount = contacts.filter(c => c.group_id === group.id).length;
-                    return (
-                      <button
-                        key={group.id}
-                        type="button"
-                        onClick={() => selectGroupOnly(group.id)}
-                        className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:bg-accent"
-                      >
-                        <div className={`h-2.5 w-2.5 rounded-full ${group.color}`} />
-                        {group.name} ({groupCount})
-                      </button>
-                    );
-                  })}
+              <TabsContent value="contacts" className="mt-0">
+                <div className="max-h-[400px] overflow-y-auto">
+                  {contacts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Users className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="mt-4 text-muted-foreground">
+                        Nenhum contato disponível
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Importe contatos na aba Contatos
+                      </p>
+                    </div>
+                  ) : filteredContacts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Tag className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="mt-4 text-muted-foreground">
+                        Nenhum contato neste grupo
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {filteredContacts.map((contact) => {
+                        const group = getGroupById(contact.group_id);
+                        return (
+                          <label
+                            key={contact.id}
+                            className="flex cursor-pointer items-center gap-4 p-4 transition-colors hover:bg-accent/50"
+                          >
+                            <Checkbox
+                              checked={selectedContactIds.has(contact.id)}
+                              onCheckedChange={() => toggleContact(contact.id)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-foreground truncate">{contact.name}</p>
+                                {group && (
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${group.color} text-white`}>
+                                    {group.name}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                            </div>
+                            {selectedContactIds.has(contact.id) && (
+                              <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </TabsContent>
 
-          <div className="max-h-[500px] overflow-y-auto">
-            {contacts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Users className="h-12 w-12 text-muted-foreground/30" />
-                <p className="mt-4 text-muted-foreground">
-                  Nenhum contato disponível
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Importe contatos na aba Contatos
-                </p>
-              </div>
-            ) : filteredContacts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Tag className="h-12 w-12 text-muted-foreground/30" />
-                <p className="mt-4 text-muted-foreground">
-                  Nenhum contato neste grupo
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {filteredContacts.map((contact) => {
-                  const group = getGroupById(contact.group_id);
-                  return (
-                    <label
-                      key={contact.id}
-                      className="flex cursor-pointer items-center gap-4 p-4 transition-colors hover:bg-accent/50"
-                    >
-                      <Checkbox
-                        checked={selectedContactIds.has(contact.id)}
-                        onCheckedChange={() => toggleContact(contact.id)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-foreground truncate">{contact.name}</p>
-                          {group && (
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${group.color} text-white`}>
-                              {group.name}
-                            </span>
+              <TabsContent value="groups" className="mt-0">
+                <div className="max-h-[400px] overflow-y-auto">
+                  {whatsappGroups.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Users2 className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="mt-4 text-muted-foreground">
+                        Nenhum grupo disponível
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Clique em "Sincronizar Grupos" para buscar seus grupos
+                      </p>
+                    </div>
+                  ) : filteredWhatsAppGroups.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Users2 className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="mt-4 text-muted-foreground">
+                        Nenhum grupo encontrado
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {filteredWhatsAppGroups.map((group) => (
+                        <label
+                          key={group.group_jid}
+                          className="flex cursor-pointer items-center gap-4 p-4 transition-colors hover:bg-accent/50"
+                        >
+                          <Checkbox
+                            checked={selectedGroupJids.has(group.group_jid)}
+                            onCheckedChange={() => toggleWhatsAppGroup(group.group_jid)}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground truncate">{group.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {group.participants_count} participantes
+                            </p>
+                          </div>
+                          {selectedGroupJids.has(group.group_jid) && (
+                            <Check className="h-5 w-5 text-primary flex-shrink-0" />
                           )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{contact.phone}</p>
-                      </div>
-                      {selectedContactIds.has(contact.id) && (
-                        <Check className="h-5 w-5 text-primary flex-shrink-0" />
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>
