@@ -60,7 +60,9 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
 
   const handleFetchContacts = async () => {
     if (!selectedInstance) return;
-    await fetchWhatsAppContacts(selectedInstance);
+    console.log('Calling fetchWhatsAppContacts with instanceId:', selectedInstance);
+    const result = await fetchWhatsAppContacts(selectedInstance);
+    console.log('Fetched contacts result:', result.length, 'contacts');
     setHasFetched(true);
   };
 
