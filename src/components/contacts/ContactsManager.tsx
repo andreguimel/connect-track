@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useContacts, useGroups, Contact, ContactGroup } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
+import { ImportWhatsAppContacts } from './ImportWhatsAppContacts';
 import {
   Table,
   TableBody,
@@ -263,6 +264,8 @@ export function ContactsManager() {
             </Button>
           </label>
           <input id="csv-upload" type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
+
+          <ImportWhatsAppContacts />
 
           <Dialog open={isGroupDialogOpen} onOpenChange={(open) => {
             setIsGroupDialogOpen(open);

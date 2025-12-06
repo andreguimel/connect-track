@@ -1,0 +1,139 @@
+import { useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useContacts } from '@/hooks/useData';
+
+export interface WhatsAppContact {
+  phoneNumber: string;
+  name: string;
+  isAdmin?: boolean;
+  alreadyExists?: boolean;
+}
+
+export function useWhatsAppContacts() {
+  const { toast } = useToast();
+  const { contacts: existingContacts, addContacts } = useContacts();
+  const [loading, setLoading] = useState(false);
+  const [contacts, setContacts] = useState<WhatsAppContact[]>([]);
+
+  const fetchWhatsAppContacts = useCallback(async (instanceId: string): Promise<WhatsAppContact[]> => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('evolution-contacts', {
+        body: { action: 'fetchContacts', instanceId },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Erro ao buscar contatos');
+      }
+
+      // Check which contacts already exist
+      const existingPhones = new Set(existingContacts.map(c => c.phone));
+      const contactsWithStatus = (data.contacts || []).map((c: WhatsAppContact) => ({
+        ...c,
+        alreadyExists: existingPhones.has(c.phoneNumber),
+      }));
+
+      setContacts(contactsWithStatus);
+      return contactsWithStatus;
+    } catch (error) {
+      console.error('Error fetching WhatsApp contacts:', error);
+      const message = error instanceof Error ? error.message : 'Erro ao buscar contatos';
+      toast({
+        title: 'Erro',
+        description: message,
+        variant: 'destructive',
+      });
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [existingContacts, toast]);
+
+  const fetchGroupParticipants = useCallback(async (instanceId: string, groupJid: string): Promise<WhatsAppContact[]> => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('evolution-contacts', {
+        body: { action: 'fetchGroupParticipants', instanceId, groupJid },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Erro ao buscar participantes');
+      }
+
+      // Check which contacts already exist
+      const existingPhones = new Set(existingContacts.map(c => c.phone));
+      const contactsWithStatus = (data.contacts || []).map((c: WhatsAppContact) => ({
+        ...c,
+        alreadyExists: existingPhones.has(c.phoneNumber),
+      }));
+
+      setContacts(contactsWithStatus);
+      return contactsWithStatus;
+    } catch (error) {
+      console.error('Error fetching group participants:', error);
+      const message = error instanceof Error ? error.message : 'Erro ao buscar participantes';
+      toast({
+        title: 'Erro',
+        description: message,
+        variant: 'destructive',
+      });
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [existingContacts, toast]);
+
+  const importContacts = useCallback(async (
+    contactsToImport: WhatsAppContact[],
+    groupId?: string
+  ): Promise<{ added: number; duplicates: number }> => {
+    try {
+      const newContacts = contactsToImport
+        .filter(c => !c.alreadyExists)
+        .map(c => ({
+          name: c.name || `Contato ${c.phoneNumber}`,
+          phone: c.phoneNumber,
+          group_id: groupId,
+        }));
+
+      if (newContacts.length === 0) {
+        toast({
+          title: 'Nenhum contato novo',
+          description: 'Todos os contatos selecionados já existem',
+        });
+        return { added: 0, duplicates: contactsToImport.length };
+      }
+
+      const result = await addContacts(newContacts);
+      
+      toast({
+        title: 'Importação concluída',
+        description: `${result.added} contatos adicionados${result.duplicates > 0 ? `, ${result.duplicates} duplicados ignorados` : ''}`,
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error importing contacts:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao importar contatos',
+        variant: 'destructive',
+      });
+      return { added: 0, duplicates: 0 };
+    }
+  }, [addContacts, toast]);
+
+  const clearContacts = useCallback(() => {
+    setContacts([]);
+  }, []);
+
+  return {
+    contacts,
+    loading,
+    fetchWhatsAppContacts,
+    fetchGroupParticipants,
+    importContacts,
+    clearContacts,
+  };
+}
