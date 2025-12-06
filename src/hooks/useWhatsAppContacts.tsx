@@ -27,9 +27,13 @@ export function useWhatsAppContacts() {
   const fetchWhatsAppContacts = useCallback(async (instanceId: string): Promise<WhatsAppContact[]> => {
     setLoading(true);
     try {
+      console.log('Fetching WhatsApp contacts for instance:', instanceId);
+      
       const { data, error } = await supabase.functions.invoke('evolution-contacts', {
         body: { action: 'fetchContacts', instanceId },
       });
+
+      console.log('Edge function response:', { data, error });
 
       if (error || !data?.success) {
         throw new Error(data?.error || error?.message || 'Erro ao buscar contatos');
@@ -37,10 +41,16 @@ export function useWhatsAppContacts() {
 
       // Check which contacts already exist (fresh from database)
       const existingPhones = await getExistingPhones();
+      console.log('Existing phones in DB:', existingPhones.size);
+      console.log('Contacts from WhatsApp:', data.contacts?.length || 0);
+
       const contactsWithStatus = (data.contacts || []).map((c: WhatsAppContact) => ({
         ...c,
         alreadyExists: existingPhones.has(c.phoneNumber),
       }));
+
+      const newCount = contactsWithStatus.filter((c: WhatsAppContact) => !c.alreadyExists).length;
+      console.log('New contacts (not in DB):', newCount);
 
       setContacts(contactsWithStatus);
       return contactsWithStatus;
