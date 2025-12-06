@@ -37,8 +37,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const { createCampaign, updateCampaign, getCampaignContacts, updateCampaignContactStatus, uploadCampaignMedia } = useCampaigns();
   const { instances } = useEvolutionInstances();
   const { groups: whatsappGroups, syncing, syncGroups, fetchGroups } = useWhatsAppGroups();
-  const { canCreateCampaign, getLimits, hasAccess, isSubscriptionActive } = useSubscription();
-  const limits = getLimits();
+  const { canCreateCampaign, getLimits, hasAccess, isSubscriptionActive, loading: subscriptionLoading } = useSubscription();
   
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [selectedGroupJids, setSelectedGroupJids] = useState<Set<string>>(new Set());
@@ -332,6 +331,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       return;
     }
 
+    const limits = getLimits();
+
     if (!canCreateCampaign()) {
       toast({
         title: "Limite de campanhas atingido",
@@ -460,7 +461,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setScheduledDate('');
     setScheduledTime('');
     clearMedia();
-  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients]);
+  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients, hasAccess, canCreateCampaign, isSubscriptionActive, getLimits]);
 
   const filteredSelectedCount = filteredContacts.filter(c => selectedContactIds.has(c.id)).length;
 
