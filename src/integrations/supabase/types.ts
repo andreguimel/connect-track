@@ -19,7 +19,9 @@ export type Database = {
           campaign_id: string
           contact_id: string
           error: string | null
+          group_jid: string | null
           id: string
+          recipient_type: string
           sent_at: string | null
           status: string
         }
@@ -27,7 +29,9 @@ export type Database = {
           campaign_id: string
           contact_id: string
           error?: string | null
+          group_jid?: string | null
           id?: string
+          recipient_type?: string
           sent_at?: string | null
           status?: string
         }
@@ -35,7 +39,9 @@ export type Database = {
           campaign_id?: string
           contact_id?: string
           error?: string | null
+          group_jid?: string | null
           id?: string
+          recipient_type?: string
           sent_at?: string | null
           status?: string
         }
@@ -258,6 +264,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      whatsapp_groups: {
+        Row: {
+          created_at: string
+          group_jid: string
+          id: string
+          instance_id: string
+          name: string
+          participants_count: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_jid: string
+          id?: string
+          instance_id: string
+          name: string
+          participants_count?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_jid?: string
+          id?: string
+          instance_id?: string
+          name?: string
+          participants_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_groups_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "evolution_instances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
