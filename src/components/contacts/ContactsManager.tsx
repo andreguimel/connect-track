@@ -170,16 +170,16 @@ export function ContactsManager() {
 
   const handleAddGroup = async () => {
     if (!newGroup.name.trim()) {
-      toast({ title: "Erro", description: "Nome do grupo é obrigatório", variant: "destructive" });
+      toast({ title: "Erro", description: "Nome da categoria é obrigatório", variant: "destructive" });
       return;
     }
 
     if (editingGroup) {
       await editGroup(editingGroup.id, newGroup.name, newGroup.color);
-      toast({ title: "Sucesso", description: "Grupo atualizado com sucesso" });
+      toast({ title: "Sucesso", description: "Categoria atualizada com sucesso" });
     } else {
       await addGroup(newGroup.name, newGroup.color);
-      toast({ title: "Sucesso", description: "Grupo criado com sucesso" });
+      toast({ title: "Sucesso", description: "Categoria criada com sucesso" });
     }
 
     setNewGroup({ name: '', color: 'bg-blue-500' });
@@ -195,7 +195,7 @@ export function ContactsManager() {
 
   const handleDeleteGroup = async (id: string) => {
     await removeGroup(id);
-    toast({ title: "Grupo removido", description: "O grupo foi removido e os contatos foram desvinculados" });
+    toast({ title: "Categoria removida", description: "A categoria foi removida e os contatos foram desvinculados" });
   };
 
   const handleChangeContactGroup = async (contactId: string, groupId: string) => {
@@ -208,7 +208,7 @@ export function ContactsManager() {
   };
 
   const handleExportCSV = () => {
-    const headers = ['Nome', 'Telefone', 'Email', 'Grupo', 'Data de Cadastro'];
+    const headers = ['Nome', 'Telefone', 'Email', 'Categoria', 'Data de Cadastro'];
     const rows = contacts.map(c => [
       c.name,
       c.phone,
@@ -269,16 +269,16 @@ export function ContactsManager() {
             if (!open) { setEditingGroup(null); setNewGroup({ name: '', color: 'bg-blue-500' }); }
           }}>
             <DialogTrigger asChild>
-              <Button variant="outline"><FolderPlus className="mr-2 h-4 w-4" />Grupos</Button>
+              <Button variant="outline"><FolderPlus className="mr-2 h-4 w-4" />Categorias</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{editingGroup ? 'Editar Grupo' : 'Gerenciar Grupos'}</DialogTitle>
-                <DialogDescription>{editingGroup ? 'Edite os dados do grupo' : 'Crie e gerencie grupos para organizar seus contatos'}</DialogDescription>
+                <DialogTitle>{editingGroup ? 'Editar Categoria' : 'Gerenciar Categorias'}</DialogTitle>
+                <DialogDescription>{editingGroup ? 'Edite os dados da categoria' : 'Crie e gerencie categorias para organizar seus contatos'}</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="group-name">Nome do Grupo</Label>
+                  <Label htmlFor="group-name">Nome da Categoria</Label>
                   <Input id="group-name" value={newGroup.name} onChange={(e) => setNewGroup(prev => ({ ...prev, name: e.target.value }))} placeholder="Ex: Clientes VIP" />
                 </div>
                 <div className="space-y-2">
@@ -289,10 +289,10 @@ export function ContactsManager() {
                     ))}
                   </div>
                 </div>
-                <Button onClick={handleAddGroup} className="w-full">{editingGroup ? 'Salvar Alterações' : 'Criar Grupo'}</Button>
+                <Button onClick={handleAddGroup} className="w-full">{editingGroup ? 'Salvar Alterações' : 'Criar Categoria'}</Button>
                 {!editingGroup && groups.length > 0 && (
                   <div className="border-t pt-4">
-                    <Label className="mb-2 block">Grupos Existentes</Label>
+                    <Label className="mb-2 block">Categorias Existentes</Label>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {groups.map((group) => (
                         <div key={group.id} className="flex items-center justify-between rounded-lg border p-3">
@@ -326,11 +326,11 @@ export function ContactsManager() {
                 <div className="space-y-2"><Label htmlFor="phone">Telefone</Label><Input id="phone" value={newContact.phone} onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))} placeholder="5511999999999" /></div>
                 <div className="space-y-2"><Label htmlFor="email">Email (opcional)</Label><Input id="email" type="email" value={newContact.email} onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))} placeholder="email@exemplo.com" /></div>
                 <div className="space-y-2">
-                  <Label htmlFor="contact-group">Grupo (opcional)</Label>
+                  <Label htmlFor="contact-group">Categoria (opcional)</Label>
                   <Select value={newContact.group_id || 'none'} onValueChange={(value) => setNewContact(prev => ({ ...prev, group_id: value === 'none' ? '' : value }))}>
-                    <SelectTrigger id="contact-group"><SelectValue placeholder="Selecione um grupo" /></SelectTrigger>
+                    <SelectTrigger id="contact-group"><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Sem grupo</SelectItem>
+                      <SelectItem value="none">Sem categoria</SelectItem>
                       {groups.map((group) => (<SelectItem key={group.id} value={group.id}><div className="flex items-center gap-2"><div className={`h-3 w-3 rounded-full ${group.color}`} />{group.name}</div></SelectItem>))}
                     </SelectContent>
                   </Select>
@@ -353,10 +353,10 @@ export function ContactsManager() {
             <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar contatos..." className="pl-10" />
           </div>
           <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
-            <SelectTrigger className="w-48"><Tag className="mr-2 h-4 w-4" /><SelectValue placeholder="Filtrar por grupo" /></SelectTrigger>
+            <SelectTrigger className="w-48"><Tag className="mr-2 h-4 w-4" /><SelectValue placeholder="Filtrar por categoria" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os grupos</SelectItem>
-              <SelectItem value="none">Sem grupo</SelectItem>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              <SelectItem value="none">Sem categoria</SelectItem>
               {groups.map((group) => (<SelectItem key={group.id} value={group.id}><div className="flex items-center gap-2"><div className={`h-3 w-3 rounded-full ${group.color}`} />{group.name}</div></SelectItem>))}
             </SelectContent>
           </Select>
@@ -370,7 +370,7 @@ export function ContactsManager() {
       {/* CSV Format Hint */}
       <div className="rounded-lg border border-border bg-accent/30 p-4">
         <p className="text-sm text-muted-foreground">
-          <strong>Formato do CSV:</strong> Nome, Telefone, Email, Grupo (opcional). 
+          <strong>Formato do CSV:</strong> Nome, Telefone, Email, Categoria (opcional). 
           Exemplo: <code className="rounded bg-secondary px-1.5 py-0.5">João Silva, 5511999999999, joao@email.com, Clientes VIP</code>
         </p>
       </div>
@@ -390,7 +390,7 @@ export function ContactsManager() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Grupo</TableHead>
+                <TableHead>Categoria</TableHead>
                 <TableHead>Data de Cadastro</TableHead>
                 <TableHead className="w-16"></TableHead>
               </TableRow>
@@ -406,10 +406,10 @@ export function ContactsManager() {
                     <TableCell>
                       <Select value={contact.group_id || 'none'} onValueChange={(value) => handleChangeContactGroup(contact.id, value)}>
                         <SelectTrigger className="w-36 h-8">
-                          <SelectValue>{group ? (<div className="flex items-center gap-2"><div className={`h-3 w-3 rounded-full ${group.color}`} /><span className="truncate">{group.name}</span></div>) : (<span className="text-muted-foreground">Sem grupo</span>)}</SelectValue>
+                          <SelectValue>{group ? (<div className="flex items-center gap-2"><div className={`h-3 w-3 rounded-full ${group.color}`} /><span className="truncate">{group.name}</span></div>) : (<span className="text-muted-foreground">Sem categoria</span>)}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Sem grupo</SelectItem>
+                          <SelectItem value="none">Sem categoria</SelectItem>
                           {groups.map((g) => (<SelectItem key={g.id} value={g.id}><div className="flex items-center gap-2"><div className={`h-3 w-3 rounded-full ${g.color}`} />{g.name}</div></SelectItem>))}
                         </SelectContent>
                       </Select>

@@ -776,16 +776,16 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                 
                 {recipientTab === 'contacts' && (
                   <>
-                    {/* Group Filter */}
+                    {/* Category Filter */}
                     <div className="flex gap-2 items-center">
                       <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
                         <SelectTrigger className="flex-1">
                           <Tag className="mr-2 h-4 w-4" />
-                          <SelectValue placeholder="Filtrar por grupo" />
+                          <SelectValue placeholder="Filtrar por categoria" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">Todos os grupos</SelectItem>
-                          <SelectItem value="none">Sem grupo</SelectItem>
+                          <SelectItem value="all">Todas as categorias</SelectItem>
+                          <SelectItem value="none">Sem categoria</SelectItem>
                           {groups.map((group) => (
                             <SelectItem key={group.id} value={group.id}>
                               <div className="flex items-center gap-2">
@@ -802,12 +802,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                           size="sm"
                           onClick={() => selectGroupOnly(selectedGroupFilter)}
                         >
-                          Selecionar Grupo
+                          Selecionar Categoria
                         </Button>
                       )}
                     </div>
 
-                    {/* Quick Group Selection */}
+                    {/* Quick Category Selection */}
                     {groups.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {groups.map((group) => {
@@ -862,7 +862,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                     <div className="flex flex-col items-center justify-center py-12">
                       <Tag className="h-12 w-12 text-muted-foreground/30" />
                       <p className="mt-4 text-muted-foreground">
-                        Nenhum contato neste grupo
+                        Nenhum contato nesta categoria
                       </p>
                     </div>
                   ) : (
