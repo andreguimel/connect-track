@@ -8,6 +8,7 @@ export interface Subscription {
   id: string;
   user_id: string;
   status: SubscriptionStatus;
+  plan_type: string;
   trial_started_at: string;
   trial_ends_at: string;
   subscription_started_at: string | null;
