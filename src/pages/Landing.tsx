@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import WhatsAppMockup from '@/components/landing/WhatsAppMockup';
 
 const features = [
   {
@@ -161,31 +162,38 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <Badge className="mb-4" variant="secondary">
-          <Smartphone className="h-3 w-3 mr-1" />
-          WhatsApp Marketing
-        </Badge>
-        <h1 className="font-display text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-          Envie mensagens em massa<br />pelo WhatsApp
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          A plataforma mais completa para disparos de WhatsApp com proteção anti-ban, 
-          variação por IA e métricas em tempo real.
-        </p>
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Check className="h-4 w-4 text-green-500" />
-            3 dias grátis
+      <section className="container mx-auto px-4 py-12 md:py-16">
+        <div className="text-center mb-12">
+          <Badge className="mb-4" variant="secondary">
+            <Smartphone className="h-3 w-3 mr-1" />
+            WhatsApp Marketing
+          </Badge>
+          <h1 className="font-display text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Envie mensagens em massa<br />pelo WhatsApp
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+            A plataforma mais completa para disparos de WhatsApp com proteção anti-ban, 
+            variação por IA e métricas em tempo real.
+          </p>
+          <div className="flex items-center justify-center gap-4 flex-wrap mb-12">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Check className="h-4 w-4 text-green-500" />
+              3 dias grátis
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Check className="h-4 w-4 text-green-500" />
+              Sem cartão de crédito
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Check className="h-4 w-4 text-green-500" />
+              Cancele quando quiser
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Check className="h-4 w-4 text-green-500" />
-            Sem cartão de crédito
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Check className="h-4 w-4 text-green-500" />
-            Cancele quando quiser
-          </div>
+        </div>
+        
+        {/* WhatsApp Mockup */}
+        <div className="pb-8">
+          <WhatsAppMockup />
         </div>
       </section>
 
