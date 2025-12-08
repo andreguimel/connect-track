@@ -240,7 +240,7 @@ export default function Landing() {
           </AlertTitle>
           <AlertDescription className="text-muted-foreground mt-2 space-y-2">
             <p>
-              <strong>O plano Standard utiliza conexão via WhatsApp Web</strong>, que não é oficialmente 
+              <strong>O plano Standard utiliza conexão via Evolution API</strong>, que não é oficialmente 
               suportada pelo WhatsApp para envios em massa. Embora nossa proteção anti-ban reduza 
               significativamente os riscos (delays aleatórios, limites diários, variação de mensagens), 
               <strong className="text-foreground"> não podemos garantir que seu número não será banido</strong>.
