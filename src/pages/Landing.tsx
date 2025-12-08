@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, X, Zap, Crown, MessageSquare, Users, Shield, Bot, Smartphone, ArrowRight, Loader2 } from 'lucide-react';
+import { Check, X, Zap, Crown, MessageSquare, Users, Shield, Bot, Smartphone, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -35,7 +36,7 @@ const features = [
     premium: true,
   },
   {
-    name: 'Proteção anti-ban integrada',
+    name: 'Medidas anti-ban (não garante proteção)',
     standard: true,
     premium: true,
   },
@@ -80,7 +81,7 @@ const features = [
     premium: true,
   },
   {
-    name: 'Sem risco de banimento',
+    name: 'Garantia contra banimento',
     standard: false,
     premium: true,
   },
@@ -202,8 +203,8 @@ export default function Landing() {
             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Shield className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="font-semibold mb-2">Anti-Ban</h3>
-            <p className="text-sm text-muted-foreground">Proteção integrada para seu número</p>
+            <h3 className="font-semibold mb-2">Anti-Ban*</h3>
+            <p className="text-sm text-muted-foreground">Medidas de proteção para reduzir riscos</p>
           </div>
           <div className="text-center p-6 rounded-xl bg-card border">
             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -220,6 +221,33 @@ export default function Landing() {
             <p className="text-sm text-muted-foreground">Organize em categorias e grupos</p>
           </div>
         </div>
+      </section>
+
+      {/* Warning Section */}
+      <section className="container mx-auto px-4 py-8">
+        <Alert className="max-w-4xl mx-auto border-amber-500/50 bg-amber-500/10">
+          <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <AlertTitle className="text-amber-600 dark:text-amber-400">
+            Aviso Importante sobre Banimentos
+          </AlertTitle>
+          <AlertDescription className="text-muted-foreground mt-2 space-y-2">
+            <p>
+              <strong>O plano Standard utiliza conexão via WhatsApp Web</strong>, que não é oficialmente 
+              suportada pelo WhatsApp para envios em massa. Embora nossa proteção anti-ban reduza 
+              significativamente os riscos (delays aleatórios, limites diários, variação de mensagens), 
+              <strong className="text-foreground"> não podemos garantir que seu número não será banido</strong>.
+            </p>
+            <p>
+              O WhatsApp pode detectar e bloquear números a qualquer momento, independente das medidas 
+              de proteção utilizadas. <strong className="text-foreground">Use por sua conta e risco.</strong>
+            </p>
+            <p className="pt-2 text-sm">
+              💡 <strong>Dica:</strong> Para <strong className="text-primary">zero risco de banimento</strong>, 
+              considere o <strong className="text-primary">Plano Premium</strong> com a API Oficial do WhatsApp Business, 
+              que é a única forma aprovada pelo WhatsApp para envios comerciais.
+            </p>
+          </AlertDescription>
+        </Alert>
       </section>
 
       {/* Pricing */}
