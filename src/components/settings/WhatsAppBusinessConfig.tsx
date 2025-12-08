@@ -81,10 +81,18 @@ export const WhatsAppBusinessConfig = () => {
               <li><strong>Sem risco de banimento</strong></li>
             </ul>
           </div>
-          <Button className="w-full" disabled>
-            <Crown className="h-4 w-4 mr-2" />
-            Fazer Upgrade para Premium
-          </Button>
+          <div className="flex items-center justify-between pt-2 border-t">
+            <div>
+              <p className="text-2xl font-bold text-foreground">R$ 249,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
+            </div>
+            <Button disabled>
+              <Crown className="h-4 w-4 mr-2" />
+              Fazer Upgrade
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Em breve disponível para contratação
+          </p>
         </CardContent>
       </Card>
     );
