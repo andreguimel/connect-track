@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const GROUP_COLORS = [
   { name: 'Azul', value: 'bg-blue-500' },
@@ -57,6 +58,7 @@ export function ContactsManager() {
   const [newGroup, setNewGroup] = useState({ name: '', color: 'bg-blue-500' });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
 
   const filteredContacts = useMemo(() => {
     let filtered = contacts;
@@ -218,7 +220,41 @@ export function ContactsManager() {
 
   const handleDelete = async (id: string) => {
     await removeContact(id);
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     toast({ title: "Contato removido", description: "O contato foi removido com sucesso" });
+  };
+
+  const handleBulkDelete = async () => {
+    const count = selectedContacts.size;
+    for (const id of selectedContacts) {
+      await removeContact(id);
+    }
+    setSelectedContacts(new Set());
+    toast({ title: "Contatos removidos", description: `${count} contatos foram removidos com sucesso` });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedContacts.size === paginatedContacts.length) {
+      setSelectedContacts(new Set());
+    } else {
+      setSelectedContacts(new Set(paginatedContacts.map(c => c.id)));
+    }
+  };
+
+  const toggleSelectContact = (id: string) => {
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   const handleExportCSV = () => {
@@ -377,9 +413,17 @@ export function ContactsManager() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Users className="h-4 w-4" />
-          <span>{filteredContacts.length} de {contacts.length} contatos</span>
+        <div className="flex items-center gap-4">
+          {selectedContacts.size > 0 && (
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir {selectedContacts.size} selecionados
+            </Button>
+          )}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            <span>{filteredContacts.length} de {contacts.length} contatos</span>
+          </div>
         </div>
       </div>
 
@@ -403,6 +447,12 @@ export function ContactsManager() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={paginatedContacts.length > 0 && selectedContacts.size === paginatedContacts.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead>Email</TableHead>
@@ -415,7 +465,13 @@ export function ContactsManager() {
               {paginatedContacts.map((contact) => {
                 const group = getGroupById(contact.group_id);
                 return (
-                  <TableRow key={contact.id}>
+                  <TableRow key={contact.id} className={selectedContacts.has(contact.id) ? 'bg-accent/50' : ''}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedContacts.has(contact.id)}
+                        onCheckedChange={() => toggleSelectContact(contact.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{contact.name}</TableCell>
                     <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
                     <TableCell className="text-muted-foreground">{contact.email || '-'}</TableCell>
