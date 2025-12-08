@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Zap, Loader2, Mail, Lock, User } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [notRobot, setNotRobot] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -163,7 +165,21 @@ export default function Auth() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            <div className="flex items-center space-x-2 rounded-lg border bg-muted/50 p-3">
+              <Checkbox
+                id="notRobot"
+                checked={notRobot}
+                onCheckedChange={(checked) => setNotRobot(checked === true)}
+              />
+              <Label 
+                htmlFor="notRobot" 
+                className="text-sm font-normal cursor-pointer select-none"
+              >
+                Não sou robô
+              </Label>
+            </div>
+
+            <Button type="submit" className="w-full" size="lg" disabled={loading || !notRobot}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -178,7 +194,10 @@ export default function Auth() {
           <div className="mt-6 text-center space-y-2">
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setNotRobot(false);
+              }}
               className="text-sm text-primary hover:underline"
             >
               {isLogin 
