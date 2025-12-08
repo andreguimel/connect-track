@@ -72,6 +72,7 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
   // New category state
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState(CATEGORY_COLORS[0]);
 
   const connectedInstances = instances.filter(i => i.status === 'connected');
 
@@ -228,41 +229,58 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
       {newContactsCount > 0 && (
         <div className="space-y-2">
           <Label>Categoria para importar (opcional)</Label>
-          {isCreatingCategory ? (
-            <div className="flex gap-2">
+        {isCreatingCategory ? (
+            <div className="space-y-3">
               <Input
                 placeholder="Nome da nova categoria"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 autoFocus
               />
-              <Button
-                size="sm"
-                onClick={async () => {
-                  if (newCategoryName.trim()) {
-                    const randomColor = CATEGORY_COLORS[Math.floor(Math.random() * CATEGORY_COLORS.length)];
-                    const result = await addGroup(newCategoryName.trim(), randomColor);
-                    if (result?.data?.id) {
-                      setSelectedGroupId(result.data.id);
+              <div className="flex flex-wrap gap-2">
+                {CATEGORY_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    className={`h-6 w-6 rounded-full ${color} transition-all ${
+                      newCategoryColor === color 
+                        ? 'ring-2 ring-offset-2 ring-primary' 
+                        : 'hover:scale-110'
+                    }`}
+                    onClick={() => setNewCategoryColor(color)}
+                  />
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    if (newCategoryName.trim()) {
+                      const result = await addGroup(newCategoryName.trim(), newCategoryColor);
+                      if (result?.data?.id) {
+                        setSelectedGroupId(result.data.id);
+                      }
+                      setNewCategoryName('');
+                      setNewCategoryColor(CATEGORY_COLORS[0]);
+                      setIsCreatingCategory(false);
                     }
-                    setNewCategoryName('');
+                  }}
+                  disabled={!newCategoryName.trim()}
+                >
+                  Criar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
                     setIsCreatingCategory(false);
-                  }
-                }}
-                disabled={!newCategoryName.trim()}
-              >
-                Criar
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setIsCreatingCategory(false);
-                  setNewCategoryName('');
-                }}
-              >
-                Cancelar
-              </Button>
+                    setNewCategoryName('');
+                    setNewCategoryColor(CATEGORY_COLORS[0]);
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="flex gap-2">
