@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Upload, Search, Trash2, Users, Plus, Download, FolderPlus, Tag, Edit2 } from 'lucide-react';
+import { Upload, Search, Trash2, Users, Plus, Download, FolderPlus, Tag, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useContacts, useGroups, Contact, ContactGroup } from '@/hooks/useData';
@@ -55,6 +55,8 @@ export function ContactsManager() {
   const [editingGroup, setEditingGroup] = useState<ContactGroup | null>(null);
   const [newContact, setNewContact] = useState({ name: '', phone: '', email: '', group_id: '' });
   const [newGroup, setNewGroup] = useState({ name: '', color: 'bg-blue-500' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   const filteredContacts = useMemo(() => {
     let filtered = contacts;
@@ -76,6 +78,17 @@ export function ContactsManager() {
     
     return filtered;
   }, [contacts, searchTerm, selectedGroupFilter]);
+
+  const totalPages = Math.ceil(filteredContacts.length / itemsPerPage);
+  const paginatedContacts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredContacts.slice(start, start + itemsPerPage);
+  }, [filteredContacts, currentPage, itemsPerPage]);
+
+  // Reset page when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedGroupFilter, itemsPerPage]);
 
   const getGroupById = (groupId: string | undefined) => {
     if (!groupId) return null;
@@ -399,7 +412,7 @@ export function ContactsManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredContacts.map((contact) => {
+              {paginatedContacts.map((contact) => {
                 const group = getGroupById(contact.group_id);
                 return (
                   <TableRow key={contact.id}>
@@ -430,6 +443,52 @@ export function ContactsManager() {
           </Table>
         )}
       </div>
+
+      {/* Pagination */}
+      {filteredContacts.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Exibir</span>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+              <SelectTrigger className="w-20 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="200">200</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">por página</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredContacts.length)} de {filteredContacts.length}
+            </span>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
