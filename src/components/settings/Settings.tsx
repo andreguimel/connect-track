@@ -14,6 +14,7 @@ import {
   getRemainingDaily
 } from '@/lib/antiban';
 import { EvolutionInstances } from './EvolutionInstances';
+import { WhatsAppBusinessConfig } from './WhatsAppBusinessConfig';
 import { useEvolutionInstances } from '@/hooks/useEvolutionInstances';
 
 interface SettingsProps {
@@ -222,6 +223,9 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
         
         <EvolutionInstances />
       </div>
+
+      {/* WhatsApp Business API - Premium */}
+      <WhatsAppBusinessConfig />
 
       {/* Anti-Ban Settings */}
       <div className="rounded-xl border bg-card p-6 shadow-sm">

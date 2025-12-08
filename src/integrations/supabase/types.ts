@@ -264,6 +264,7 @@ export type Database = {
           id: string
           mercadopago_payer_id: string | null
           mercadopago_subscription_id: string | null
+          plan_type: string
           status: Database["public"]["Enums"]["subscription_status"]
           subscription_ends_at: string | null
           subscription_started_at: string | null
@@ -277,6 +278,7 @@ export type Database = {
           id?: string
           mercadopago_payer_id?: string | null
           mercadopago_subscription_id?: string | null
+          plan_type?: string
           status?: Database["public"]["Enums"]["subscription_status"]
           subscription_ends_at?: string | null
           subscription_started_at?: string | null
@@ -290,6 +292,7 @@ export type Database = {
           id?: string
           mercadopago_payer_id?: string | null
           mercadopago_subscription_id?: string | null
+          plan_type?: string
           status?: Database["public"]["Enums"]["subscription_status"]
           subscription_ends_at?: string | null
           subscription_started_at?: string | null
@@ -299,6 +302,95 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      whatsapp_business_accounts: {
+        Row: {
+          access_token: string
+          business_account_id: string
+          created_at: string
+          id: string
+          name: string
+          phone_number: string | null
+          phone_number_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          business_account_id: string
+          created_at?: string
+          id?: string
+          name: string
+          phone_number?: string | null
+          phone_number_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          business_account_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          phone_number?: string | null
+          phone_number_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_business_templates: {
+        Row: {
+          account_id: string
+          category: string
+          components: Json
+          created_at: string
+          id: string
+          language: string
+          status: string
+          template_id: string | null
+          template_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          category?: string
+          components?: Json
+          created_at?: string
+          id?: string
+          language?: string
+          status?: string
+          template_id?: string | null
+          template_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          category?: string
+          components?: Json
+          created_at?: string
+          id?: string
+          language?: string
+          status?: string
+          template_id?: string | null
+          template_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_business_templates_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_business_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_groups: {
         Row: {
