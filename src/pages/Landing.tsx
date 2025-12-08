@@ -134,26 +134,28 @@ export default function Landing() {
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
       {/* Header */}
       <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <Zap className="h-6 w-6 text-primary-foreground" />
+            <div className="h-8 w-8 md:h-10 md:w-10 rounded-xl bg-primary flex items-center justify-center">
+              <Zap className="h-4 w-4 md:h-6 md:w-6 text-primary-foreground" />
             </div>
-            <span className="font-display text-xl font-bold">ZapMassa</span>
+            <span className="font-display text-lg md:text-xl font-bold">ZapMassa</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {user ? (
-              <Button onClick={() => navigate('/')}>
-                Acessar App
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Button size="sm" className="md:h-10 md:px-4" onClick={() => navigate('/')}>
+                <span className="hidden sm:inline">Acessar App</span>
+                <span className="sm:hidden">App</span>
+                <ArrowRight className="ml-1 md:ml-2 h-4 w-4" />
               </Button>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => navigate('/auth')}>
+                <Button variant="ghost" size="sm" className="hidden sm:flex md:h-10 md:px-4" onClick={() => navigate('/auth')}>
                   Entrar
                 </Button>
-                <Button onClick={() => navigate('/auth')}>
-                  Começar Grátis
+                <Button size="sm" className="md:h-10 md:px-4" onClick={() => navigate('/auth')}>
+                  <span className="hidden sm:inline">Começar Grátis</span>
+                  <span className="sm:hidden">Entrar</span>
                 </Button>
               </>
             )}
@@ -162,114 +164,111 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="container mx-auto px-4 py-12 md:py-16">
-        <div className="text-center mb-12">
+      <section className="container mx-auto px-4 py-8 md:py-16">
+        <div className="text-center mb-8 md:mb-12">
           <Badge className="mb-4" variant="secondary">
             <Smartphone className="h-3 w-3 mr-1" />
             WhatsApp Marketing
           </Badge>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Envie mensagens em massa<br />pelo WhatsApp
+          <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 md:mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent leading-tight">
+            Envie mensagens em massa<br className="hidden sm:block" />pelo WhatsApp
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+          <p className="text-base md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 md:mb-8 px-2">
             A plataforma mais completa para disparos de WhatsApp com proteção anti-ban, 
             variação por IA e métricas em tempo real.
           </p>
-          <div className="flex items-center justify-center gap-4 flex-wrap mb-12">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Check className="h-4 w-4 text-green-500" />
+          <div className="flex items-center justify-center gap-3 md:gap-4 flex-wrap mb-8 md:mb-12">
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground">
+              <Check className="h-3 w-3 md:h-4 md:w-4 text-green-500" />
               3 dias grátis
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Check className="h-4 w-4 text-green-500" />
-              Sem cartão de crédito
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground">
+              <Check className="h-3 w-3 md:h-4 md:w-4 text-green-500" />
+              Sem cartão
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Check className="h-4 w-4 text-green-500" />
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground">
+              <Check className="h-3 w-3 md:h-4 md:w-4 text-green-500" />
               Cancele quando quiser
             </div>
           </div>
         </div>
         
         {/* WhatsApp Mockup */}
-        <div className="pb-8">
+        <div className="pb-4 md:pb-8">
           <WhatsAppMockup />
         </div>
       </section>
 
       {/* Features Grid */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-4 gap-6 mb-16">
-          <div className="text-center p-6 rounded-xl bg-card border">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <MessageSquare className="h-6 w-6 text-primary" />
+      <section className="container mx-auto px-4 py-8 md:py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8 md:mb-16">
+          <div className="text-center p-4 md:p-6 rounded-xl bg-card border">
+            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3 md:mb-4">
+              <MessageSquare className="h-5 w-5 md:h-6 md:w-6 text-primary" />
             </div>
-            <h3 className="font-semibold mb-2">Disparos em Massa</h3>
-            <p className="text-sm text-muted-foreground">Envie para centenas de contatos com um clique</p>
+            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">Disparos em Massa</h3>
+            <p className="text-xs md:text-sm text-muted-foreground">Envie para centenas de contatos</p>
           </div>
-          <div className="text-center p-6 rounded-xl bg-card border">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Shield className="h-6 w-6 text-primary" />
+          <div className="text-center p-4 md:p-6 rounded-xl bg-card border">
+            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3 md:mb-4">
+              <Shield className="h-5 w-5 md:h-6 md:w-6 text-primary" />
             </div>
-            <h3 className="font-semibold mb-2">Anti-Ban*</h3>
-            <p className="text-sm text-muted-foreground">Medidas de proteção para reduzir riscos</p>
+            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">Anti-Ban*</h3>
+            <p className="text-xs md:text-sm text-muted-foreground">Proteção para reduzir riscos</p>
           </div>
-          <div className="text-center p-6 rounded-xl bg-card border">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Bot className="h-6 w-6 text-primary" />
+          <div className="text-center p-4 md:p-6 rounded-xl bg-card border">
+            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3 md:mb-4">
+              <Bot className="h-5 w-5 md:h-6 md:w-6 text-primary" />
             </div>
-            <h3 className="font-semibold mb-2">IA Integrada</h3>
-            <p className="text-sm text-muted-foreground">Variação automática de mensagens</p>
+            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">IA Integrada</h3>
+            <p className="text-xs md:text-sm text-muted-foreground">Variação automática</p>
           </div>
-          <div className="text-center p-6 rounded-xl bg-card border">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Users className="h-6 w-6 text-primary" />
+          <div className="text-center p-4 md:p-6 rounded-xl bg-card border">
+            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3 md:mb-4">
+              <Users className="h-5 w-5 md:h-6 md:w-6 text-primary" />
             </div>
-            <h3 className="font-semibold mb-2">Gestão de Contatos</h3>
-            <p className="text-sm text-muted-foreground">Organize em categorias e grupos</p>
+            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">Gestão de Contatos</h3>
+            <p className="text-xs md:text-sm text-muted-foreground">Organize em categorias</p>
           </div>
         </div>
       </section>
 
       {/* Warning Section */}
-      <section className="container mx-auto px-4 py-8">
+      <section className="container mx-auto px-4 py-6 md:py-8">
         <Alert className="max-w-4xl mx-auto border-amber-500/50 bg-amber-500/10">
-          <AlertTriangle className="h-5 w-5 text-amber-500" />
-          <AlertTitle className="text-amber-600 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-amber-500" />
+          <AlertTitle className="text-amber-600 dark:text-amber-400 text-sm md:text-base">
             Aviso Importante sobre Banimentos
           </AlertTitle>
-          <AlertDescription className="text-muted-foreground mt-2 space-y-2">
+          <AlertDescription className="text-muted-foreground mt-2 space-y-2 text-xs md:text-sm">
             <p>
               <strong>O plano Standard utiliza conexão via Evolution API</strong>, que não é oficialmente 
               suportada pelo WhatsApp para envios em massa. Embora nossa proteção anti-ban reduza 
-              significativamente os riscos (delays aleatórios, limites diários, variação de mensagens), 
-              <strong className="text-foreground"> não podemos garantir que seu número não será banido</strong>.
+              significativamente os riscos, <strong className="text-foreground">não podemos garantir proteção total</strong>.
             </p>
-            <p>
-              O WhatsApp pode detectar e bloquear números a qualquer momento, independente das medidas 
-              de proteção utilizadas. <strong className="text-foreground">Use por sua conta e risco.</strong>
+            <p className="hidden md:block">
+              O WhatsApp pode detectar e bloquear números a qualquer momento. <strong className="text-foreground">Use por sua conta e risco.</strong>
             </p>
-            <p className="pt-2 text-sm">
-              💡 <strong>Dica:</strong> Para <strong className="text-primary">zero risco de banimento</strong>, 
-              considere o <strong className="text-primary">Plano Premium</strong> com a API Oficial do WhatsApp Business, 
-              que é a única forma aprovada pelo WhatsApp para envios comerciais.
+            <p className="pt-2">
+              💡 <strong>Dica:</strong> Para <strong className="text-primary">zero risco</strong>, 
+              considere o <strong className="text-primary">Plano Premium</strong> com a API Oficial do WhatsApp Business.
             </p>
           </AlertDescription>
         </Alert>
       </section>
 
       {/* Pricing */}
-      <section className="container mx-auto px-4 py-12" id="planos">
-        <div className="text-center mb-12">
-          <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
+      <section className="container mx-auto px-4 py-8 md:py-12" id="planos">
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4">
             Escolha seu plano
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
+          <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
             Comece com 3 dias grátis. Escolha o plano ideal para o seu negócio.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-8 max-w-4xl mx-auto">
           {/* Standard Plan */}
           <Card className="relative">
             <CardHeader>

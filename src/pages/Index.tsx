@@ -238,8 +238,8 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <PaywallOverlay />
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="pl-64">
-        <div className="container max-w-6xl py-8 space-y-6">
+      <main className="pt-14 lg:pt-0 lg:pl-64">
+        <div className="container max-w-6xl px-4 py-6 lg:py-8 space-y-6">
           <SubscriptionBanner />
           {renderContent()}
         </div>
