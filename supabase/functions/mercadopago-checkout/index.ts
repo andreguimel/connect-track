@@ -9,7 +9,21 @@ const corsHeaders = {
 interface CheckoutRequest {
   userId: string;
   userEmail: string;
+  planType?: 'standard' | 'premium';
 }
+
+const PLANS = {
+  standard: {
+    title: "ZapMassa - Plano Standard",
+    description: "Acesso completo ao ZapMassa para envio de mensagens em massa via WhatsApp",
+    price: 149.90,
+  },
+  premium: {
+    title: "ZapMassa - Plano Premium",
+    description: "Acesso completo + API Oficial do WhatsApp Business com botões interativos e templates",
+    price: 249.90,
+  },
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -22,11 +36,13 @@ serve(async (req) => {
       throw new Error("MERCADOPAGO_ACCESS_TOKEN not configured");
     }
 
-    const { userId, userEmail }: CheckoutRequest = await req.json();
+    const { userId, userEmail, planType = 'standard' }: CheckoutRequest = await req.json();
 
     if (!userId || !userEmail) {
       throw new Error("userId and userEmail are required");
     }
+
+    const plan = PLANS[planType] || PLANS.standard;
 
     // Get the origin from the request for the redirect URLs
     const origin = req.headers.get("origin") || "https://preview--zapmassa.lovable.app";
@@ -35,23 +51,24 @@ serve(async (req) => {
     const preferenceData = {
       items: [
         {
-          title: "ZapMassa - Assinatura Mensal",
-          description: "Acesso completo ao ZapMassa para envio de mensagens em massa via WhatsApp",
+          title: plan.title,
+          description: plan.description,
           quantity: 1,
           currency_id: "BRL",
-          unit_price: 149.90,
+          unit_price: plan.price,
         },
       ],
       payer: {
         email: userEmail,
       },
       back_urls: {
-        success: `${origin}/?payment=success`,
+        success: `${origin}/?payment=success&plan=${planType}`,
         failure: `${origin}/?payment=failure`,
         pending: `${origin}/?payment=pending`,
       },
       auto_return: "approved",
-      external_reference: userId,
+      // Store both userId and planType in external_reference
+      external_reference: JSON.stringify({ userId, planType }),
       notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mercadopago-webhook`,
     };
 
