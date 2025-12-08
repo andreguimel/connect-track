@@ -7,10 +7,13 @@ import {
   Settings,
   Zap,
   FileText,
-  LogOut
+  LogOut,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 interface SidebarProps {
   activeTab: string;
@@ -28,6 +31,7 @@ const menuItems = [
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { signOut } = useAuth();
+  const { isAdmin } = useAdmin();
   
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
@@ -69,6 +73,17 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
         {/* Footer */}
         <div className="border-t border-border p-4 space-y-4">
+          {isAdmin && (
+            <Link to="/admin">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start border-primary/50 text-primary hover:bg-primary/10"
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                Painel Admin
+              </Button>
+            </Link>
+          )}
           <div className="rounded-lg bg-accent/50 p-4">
             <p className="text-xs font-medium text-accent-foreground">Integração n8n</p>
             <p className="mt-1 text-xs text-muted-foreground">

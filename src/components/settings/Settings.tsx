@@ -16,7 +16,7 @@ import {
 import { EvolutionInstances } from './EvolutionInstances';
 import { WhatsAppBusinessConfig } from './WhatsAppBusinessConfig';
 import { useEvolutionInstances } from '@/hooks/useEvolutionInstances';
-import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface SettingsProps {
   webhookUrl: string;
@@ -24,15 +24,12 @@ interface SettingsProps {
 }
 
 const N8N_WEBHOOK_URL = 'https://oito.codigopro.tech/webhook/70343adc-43eb-4015-9571-d382c00bb03b';
-const SUPER_ADMIN_EMAIL = 'andreguimel@gmail.com';
 
 export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
-  const { user } = useAuth();
+  const { isAdmin } = useAdmin();
   const { toast } = useToast();
   const { instances } = useEvolutionInstances();
   const [localWebhookUrl, setLocalWebhookUrl] = useState(webhookUrl || N8N_WEBHOOK_URL);
-  
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const [antiBanSettings, setAntiBanSettings] = useState<AntiBanSettings>(getAntiBanSettings);
   const [dailySent, setDailySent] = useState(getDailySentCount);
   const [testPhone, setTestPhone] = useState('');
@@ -387,8 +384,8 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
         </div>
       </div>
 
-      {/* n8n Integration - Super Admin Only */}
-      {isSuperAdmin && (
+      {/* n8n Integration - Admin Only */}
+      {isAdmin && (
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent">
