@@ -16,6 +16,7 @@ import {
 import { EvolutionInstances } from './EvolutionInstances';
 import { WhatsAppBusinessConfig } from './WhatsAppBusinessConfig';
 import { useEvolutionInstances } from '@/hooks/useEvolutionInstances';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SettingsProps {
   webhookUrl: string;
@@ -23,11 +24,15 @@ interface SettingsProps {
 }
 
 const N8N_WEBHOOK_URL = 'https://oito.codigopro.tech/webhook/70343adc-43eb-4015-9571-d382c00bb03b';
+const SUPER_ADMIN_EMAIL = 'andreguimel@gmail.com';
 
 export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const { instances } = useEvolutionInstances();
   const [localWebhookUrl, setLocalWebhookUrl] = useState(webhookUrl || N8N_WEBHOOK_URL);
+  
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const [antiBanSettings, setAntiBanSettings] = useState<AntiBanSettings>(getAntiBanSettings);
   const [dailySent, setDailySent] = useState(getDailySentCount);
   const [testPhone, setTestPhone] = useState('');
@@ -382,61 +387,62 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
         </div>
       </div>
 
-      {/* n8n Integration */}
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent">
-            <Zap className="h-6 w-6 text-accent-foreground" />
-          </div>
-          <div className="flex-1">
-            <h2 className="font-display text-xl font-semibold text-foreground">
-              Integração n8n + Evolution API
-            </h2>
-            <p className="mt-1 text-muted-foreground">
-              Webhook configurado para envio via Evolution API
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="webhook-url">URL do Webhook</Label>
-            <div className="flex gap-2">
-              <Input
-                id="webhook-url"
-                value={localWebhookUrl}
-                onChange={(e) => setLocalWebhookUrl(e.target.value)}
-                placeholder="https://seu-n8n.com/webhook/..."
-                className="flex-1 font-mono text-sm"
-              />
-              <Button onClick={handleSaveWebhook}>
-                <Save className="mr-2 h-4 w-4" />
-                Salvar
-              </Button>
+      {/* n8n Integration - Super Admin Only */}
+      {isSuperAdmin && (
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent">
+              <Zap className="h-6 w-6 text-accent-foreground" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display text-xl font-semibold text-foreground">
+                Integração n8n + Evolution API
+              </h2>
+              <p className="mt-1 text-muted-foreground">
+                Webhook configurado para envio via Evolution API
+              </p>
             </div>
           </div>
 
-          {/* Info Box */}
-          <div className="rounded-lg border border-info/20 bg-info/5 p-4">
-            <div className="flex gap-3">
-              <Info className="h-5 w-5 shrink-0 text-info" />
-              <div className="space-y-2 text-sm">
-                <p className="font-medium text-info">Configure no n8n:</p>
-                <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
-                  <li>Webhook recebe os dados (já configurado)</li>
-                  <li>Adicione nó "Wait" com delay aleatório</li>
-                  <li>Conecte com Evolution API (Send Message)</li>
-                  <li>Configure instância e credenciais da Evolution</li>
-                  <li>Ative o workflow</li>
-                </ol>
+          <div className="mt-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="webhook-url">URL do Webhook</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="webhook-url"
+                  value={localWebhookUrl}
+                  onChange={(e) => setLocalWebhookUrl(e.target.value)}
+                  placeholder="https://seu-n8n.com/webhook/..."
+                  className="flex-1 font-mono text-sm"
+                />
+                <Button onClick={handleSaveWebhook}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar
+                </Button>
               </div>
             </div>
-          </div>
 
-          {/* Expected Payload */}
-          <div className="rounded-lg border bg-secondary/50 p-4">
-            <p className="text-sm font-medium text-foreground">Payload enviado ao webhook:</p>
-            <pre className="mt-2 overflow-x-auto rounded bg-background p-3 text-xs text-muted-foreground">
+            {/* Info Box */}
+            <div className="rounded-lg border border-info/20 bg-info/5 p-4">
+              <div className="flex gap-3">
+                <Info className="h-5 w-5 shrink-0 text-info" />
+                <div className="space-y-2 text-sm">
+                  <p className="font-medium text-info">Configure no n8n:</p>
+                  <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
+                    <li>Webhook recebe os dados (já configurado)</li>
+                    <li>Adicione nó "Wait" com delay aleatório</li>
+                    <li>Conecte com Evolution API (Send Message)</li>
+                    <li>Configure instância e credenciais da Evolution</li>
+                    <li>Ative o workflow</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            {/* Expected Payload */}
+            <div className="rounded-lg border bg-secondary/50 p-4">
+              <p className="text-sm font-medium text-foreground">Payload enviado ao webhook:</p>
+              <pre className="mt-2 overflow-x-auto rounded bg-background p-3 text-xs text-muted-foreground">
 {`{
   "campaignId": "uuid",
   "contactId": "uuid",
@@ -445,10 +451,11 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
   "message": "Mensagem personalizada",
   "timestamp": "2024-01-01T00:00:00.000Z"
 }`}
-            </pre>
+              </pre>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Test Message */}
       <div className="rounded-xl border bg-card p-6 shadow-sm">
