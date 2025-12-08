@@ -303,6 +303,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_business_accounts: {
         Row: {
           access_token: string
@@ -438,9 +459,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_update_subscription: {
+        Args: {
+          _plan_type?: string
+          _status: Database["public"]["Enums"]["subscription_status"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      get_admin_user_stats: {
+        Args: never
+        Returns: {
+          campaigns_count: number
+          created_at: string
+          devices_count: number
+          email: string
+          full_name: string
+          messages_sent: number
+          subscription_plan: string
+          subscription_status: string
+          trial_ends_at: string
+          user_id: string
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "user"
       subscription_status: "trial" | "active" | "expired" | "cancelled"
     }
     CompositeTypes: {
@@ -569,6 +620,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       subscription_status: ["trial", "active", "expired", "cancelled"],
     },
   },
