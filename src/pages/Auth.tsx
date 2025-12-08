@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -175,7 +175,7 @@ export default function Auth() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
@@ -185,6 +185,14 @@ export default function Auth() {
                 ? 'Não tem conta? Criar agora' 
                 : 'Já tem conta? Entrar'}
             </button>
+            <div>
+              <Link 
+                to="/planos" 
+                className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Ver planos e preços
+              </Link>
+            </div>
           </div>
         </div>
       </div>
