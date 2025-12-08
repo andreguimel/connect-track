@@ -29,7 +29,9 @@ export const WhatsAppBusinessConfig = () => {
   const [accessToken, setAccessToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isPremium = subscription?.plan_type === 'premium';
+  const SUPER_ADMIN_EMAIL = 'andreguimel@gmail.com';
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const isPremium = subscription?.plan_type === 'premium' || isSuperAdmin;
 
   const handleUpgradeToPremium = async () => {
     if (!user?.email) {
