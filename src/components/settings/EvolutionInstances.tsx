@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useEvolutionInstances, EvolutionInstance } from '@/hooks/useEvolutionInstances';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,10 @@ export function EvolutionInstances() {
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [reconnectingInstance, setReconnectingInstance] = useState<string | null>(null);
+  
+  // Track previous statuses to detect disconnections
+  const previousStatusesRef = useRef<Record<string, string>>({});
   
   // Auto-refresh status for connecting instances
   useEffect(() => {
@@ -59,6 +64,36 @@ export function EvolutionInstances() {
 
     return () => clearInterval(interval);
   }, [instances, checkStatus]);
+
+  // Heartbeat: periodic status check for all instances (every 30 seconds)
+  useEffect(() => {
+    if (instances.length === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const instance of instances) {
+        if (instance.status === 'connected') {
+          await checkStatus(instance);
+        }
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [instances, checkStatus]);
+
+  // Detect disconnections and show toast
+  useEffect(() => {
+    instances.forEach((instance) => {
+      const prevStatus = previousStatusesRef.current[instance.id];
+      if (prevStatus === 'connected' && instance.status === 'disconnected') {
+        toast({
+          title: 'Conexão perdida',
+          description: `${instance.name} foi desconectado. Clique em "Reconectar" para gerar um novo QR Code.`,
+          variant: 'destructive',
+        });
+      }
+      previousStatusesRef.current[instance.id] = instance.status;
+    });
+  }, [instances, toast]);
 
   // Check status when QR dialog is open
   useEffect(() => {
@@ -123,11 +158,29 @@ export function EvolutionInstances() {
     setCheckingStatus(null);
   };
 
+  const handleReconnect = async (instance: EvolutionInstance) => {
+    setReconnectingInstance(instance.id);
+    setSelectedInstance(instance);
+    setShowQRDialog(true);
+    setIsLoadingQR(true);
+    
+    const qr = await getQRCode(instance);
+    setIsLoadingQR(false);
+    setReconnectingInstance(null);
+    
+    if (qr) {
+      setQrCode(qr);
+    }
+  };
+
   const handleDelete = async () => {
     if (!showDeleteDialog) return;
     await deleteInstance(showDeleteDialog);
     setShowDeleteDialog(null);
   };
+
+  // Check if there are any disconnected instances that were previously connected
+  const hasDisconnectedInstances = instances.some(i => i.status === 'disconnected');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -165,6 +218,16 @@ export function EvolutionInstances() {
 
   return (
     <div className="space-y-4">
+      {/* Disconnection Alert */}
+      {hasDisconnectedInstances && (
+        <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="ml-2">
+            Uma ou mais conexões foram perdidas. Use o botão "Reconectar" para gerar um novo QR Code.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header with Add Button */}
       <div className="flex items-center justify-between">
         <div>
@@ -293,12 +356,34 @@ export function EvolutionInstances() {
                 {getStatusBadge(instance.status)}
                 
                 <div className="flex gap-1">
-                  {instance.status !== 'connected' && (
+                  {instance.status === 'disconnected' && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleReconnect(instance)}
+                      disabled={reconnectingInstance === instance.id}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      {reconnectingInstance === instance.id ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          Reconectando...
+                        </>
+                      ) : (
+                        <>
+                          <QrCode className="mr-1.5 h-3.5 w-3.5" />
+                          Reconectar
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  {instance.status === 'connecting' && (
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => handleGetQR(instance)}
-                      title="Gerar QR Code"
+                      title="Ver QR Code"
                     >
                       <QrCode className="h-4 w-4" />
                     </Button>
