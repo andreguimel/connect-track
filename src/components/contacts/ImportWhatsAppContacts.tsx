@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Smartphone, Loader2, UserCheck, UserPlus, Users, UsersRound, Lock, Plus } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Smartphone, Loader2, UserCheck, UserPlus, Users, UsersRound, Lock, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -72,6 +72,7 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
   // New category state
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [groupSearchTerm, setGroupSearchTerm] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState(CATEGORY_COLORS[0]);
 
   const connectedInstances = instances.filter(i => i.status === 'connected');
@@ -91,6 +92,7 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
       setHasFetchedGroups(false);
       setSelectedWhatsAppGroup(null);
       setActiveTab('contacts');
+      setGroupSearchTerm('');
       clearContacts();
     }
   }, [isOpen, clearContacts]);
@@ -455,13 +457,22 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
                   <div className="space-y-2">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-muted-foreground">
-                        {whatsappGroups.length} grupos encontrados
+                        {whatsappGroups.filter(g => g.instance_id === selectedInstance).length} grupos encontrados
                       </span>
                       <Button variant="ghost" size="sm" onClick={handleSyncGroups} disabled={syncing}>
                         {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Atualizar'}
                       </Button>
                     </div>
-                    <ScrollArea className="h-64 rounded-lg border bg-background">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar grupo..."
+                        value={groupSearchTerm}
+                        onChange={(e) => setGroupSearchTerm(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <ScrollArea className="h-56 rounded-lg border bg-background">
                       {whatsappGroups.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-muted-foreground">
                           Nenhum grupo encontrado
@@ -470,6 +481,7 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
                         <div className="p-2 space-y-1">
                           {whatsappGroups
                             .filter(g => g.instance_id === selectedInstance)
+                            .filter(g => g.name.toLowerCase().includes(groupSearchTerm.toLowerCase()))
                             .map((group) => (
                             <div
                               key={group.id}
