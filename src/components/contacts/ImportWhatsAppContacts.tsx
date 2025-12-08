@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Smartphone, Loader2, UserCheck, UserPlus, Users, UsersRound, Lock } from 'lucide-react';
+import { Smartphone, Loader2, UserCheck, UserPlus, Users, UsersRound, Lock, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,17 @@ import { useWhatsAppGroups, WhatsAppGroup } from '@/hooks/useWhatsAppGroups';
 import { useGroups } from '@/hooks/useData';
 import { useSubscription } from '@/hooks/useSubscription';
 
+const CATEGORY_COLORS = [
+  'bg-blue-500',
+  'bg-green-500',
+  'bg-yellow-500',
+  'bg-red-500',
+  'bg-purple-500',
+  'bg-pink-500',
+  'bg-indigo-500',
+  'bg-orange-500',
+];
+
 interface ImportWhatsAppContactsProps {
   onImportComplete?: () => void;
 }
@@ -41,7 +53,7 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
   const { instances, fetchInstances } = useEvolutionInstances();
   const { contacts, loading, fetchWhatsAppContacts, fetchGroupParticipants, importContacts, clearContacts } = useWhatsAppContacts();
   const { groups: whatsappGroups, syncing, syncGroups, fetchGroups } = useWhatsAppGroups();
-  const { groups: categories } = useGroups();
+  const { groups: categories, addGroup } = useGroups();
   const { getLimits } = useSubscription();
   const limits = getLimits();
 
@@ -56,6 +68,10 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
   // Group tab state
   const [selectedWhatsAppGroup, setSelectedWhatsAppGroup] = useState<WhatsAppGroup | null>(null);
   const [hasFetchedGroups, setHasFetchedGroups] = useState(false);
+  
+  // New category state
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const connectedInstances = instances.filter(i => i.status === 'connected');
 
@@ -212,22 +228,69 @@ export function ImportWhatsAppContacts({ onImportComplete }: ImportWhatsAppConta
       {newContactsCount > 0 && (
         <div className="space-y-2">
           <Label>Categoria para importar (opcional)</Label>
-          <Select value={selectedGroupId || "none"} onValueChange={(v) => setSelectedGroupId(v === "none" ? "" : v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Sem categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Sem categoria</SelectItem>
-              {categories.map((group) => (
-                <SelectItem key={group.id} value={group.id}>
-                  <div className="flex items-center gap-2">
-                    <div className={`h-3 w-3 rounded-full ${group.color}`} />
-                    {group.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isCreatingCategory ? (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nome da nova categoria"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                autoFocus
+              />
+              <Button
+                size="sm"
+                onClick={async () => {
+                  if (newCategoryName.trim()) {
+                    const randomColor = CATEGORY_COLORS[Math.floor(Math.random() * CATEGORY_COLORS.length)];
+                    const result = await addGroup(newCategoryName.trim(), randomColor);
+                    if (result?.data?.id) {
+                      setSelectedGroupId(result.data.id);
+                    }
+                    setNewCategoryName('');
+                    setIsCreatingCategory(false);
+                  }
+                }}
+                disabled={!newCategoryName.trim()}
+              >
+                Criar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setIsCreatingCategory(false);
+                  setNewCategoryName('');
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Select value={selectedGroupId || "none"} onValueChange={(v) => setSelectedGroupId(v === "none" ? "" : v)}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Sem categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem categoria</SelectItem>
+                  {categories.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      <div className="flex items-center gap-2">
+                        <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                        {group.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsCreatingCategory(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </>
