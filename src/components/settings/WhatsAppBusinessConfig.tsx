@@ -9,13 +9,18 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useWhatsAppBusiness, WhatsAppBusinessAccount } from '@/hooks/useWhatsAppBusiness';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export const WhatsAppBusinessConfig = () => {
   const { accounts, loading, createAccount, deleteAccount, fetchAccounts, syncTemplatesFromMeta } = useWhatsAppBusiness();
   const { subscription } = useSubscription();
+  const { user } = useAuth();
   const [isAddingAccount, setIsAddingAccount] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState<string | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -25,6 +30,38 @@ export const WhatsAppBusinessConfig = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isPremium = subscription?.plan_type === 'premium';
+
+  const handleUpgradeToPremium = async () => {
+    if (!user?.email) {
+      toast.error('Erro ao identificar usuário');
+      return;
+    }
+
+    setIsCheckingOut(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('mercadopago-checkout', {
+        body: {
+          userId: user.id,
+          userEmail: user.email,
+          planType: 'premium',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error('URL de checkout não retornada');
+      }
+    } catch (error: any) {
+      console.error('Erro ao criar checkout:', error);
+      toast.error(error.message || 'Erro ao processar pagamento');
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
 
   const handleAddAccount = async () => {
     if (!name || !phoneNumberId || !businessAccountId || !accessToken) {
@@ -81,18 +118,30 @@ export const WhatsAppBusinessConfig = () => {
               <li><strong>Sem risco de banimento</strong></li>
             </ul>
           </div>
-          <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex items-center justify-between pt-4 border-t">
             <div>
-              <p className="text-2xl font-bold text-foreground">R$ 249,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
+              <p className="text-2xl font-bold text-foreground">
+                R$ 249,90
+                <span className="text-sm font-normal text-muted-foreground">/mês</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Upgrade do plano Standard
+              </p>
             </div>
-            <Button disabled>
-              <Crown className="h-4 w-4 mr-2" />
-              Fazer Upgrade
+            <Button onClick={handleUpgradeToPremium} disabled={isCheckingOut}>
+              {isCheckingOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <Crown className="h-4 w-4 mr-2" />
+                  Fazer Upgrade
+                </>
+              )}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            Em breve disponível para contratação
-          </p>
         </CardContent>
       </Card>
     );
@@ -106,6 +155,7 @@ export const WhatsAppBusinessConfig = () => {
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
               API Oficial do WhatsApp Business
+              <Badge variant="default" className="bg-primary">Premium</Badge>
             </CardTitle>
             <CardDescription>
               Conecte sua conta Business para enviar mensagens com botões e templates

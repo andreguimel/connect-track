@@ -43,7 +43,18 @@ serve(async (req) => {
       console.log("Payment details:", JSON.stringify(payment, null, 2));
 
       if (payment.status === "approved") {
-        const userId = payment.external_reference;
+        let userId: string;
+        let planType: string = 'standard';
+
+        // Parse external_reference - it can be JSON or just userId (legacy)
+        try {
+          const refData = JSON.parse(payment.external_reference);
+          userId = refData.userId;
+          planType = refData.planType || 'standard';
+        } catch {
+          // Legacy format: just the userId string
+          userId = payment.external_reference;
+        }
 
         if (!userId) {
           console.error("No user ID in external_reference");
@@ -53,16 +64,19 @@ serve(async (req) => {
           });
         }
 
+        console.log(`Processing payment for user ${userId}, plan: ${planType}`);
+
         // Calculate subscription end date (1 month from now)
         const subscriptionStartsAt = new Date();
         const subscriptionEndsAt = new Date();
         subscriptionEndsAt.setMonth(subscriptionEndsAt.getMonth() + 1);
 
-        // Update or create subscription
+        // Update or create subscription with plan_type
         const { error } = await supabase
           .from("subscriptions")
           .update({
             status: "active",
+            plan_type: planType,
             subscription_started_at: subscriptionStartsAt.toISOString(),
             subscription_ends_at: subscriptionEndsAt.toISOString(),
             mercadopago_payer_id: payment.payer?.id?.toString() || null,
@@ -74,7 +88,7 @@ serve(async (req) => {
           throw error;
         }
 
-        console.log(`Subscription activated for user ${userId}`);
+        console.log(`Subscription activated for user ${userId} with plan ${planType}`);
       }
     }
 
