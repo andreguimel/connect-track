@@ -27,21 +27,29 @@ serve(async (req) => {
 
     console.log('Variando mensagem:', message.substring(0, 50) + '...');
 
-    const systemPrompt = `Você é um assistente especializado em reescrever mensagens para WhatsApp marketing.
+const systemPrompt = `Você é um especialista em reescrever mensagens de WhatsApp de forma CRIATIVA e ÚNICA.
 
-REGRAS ESTRITAS:
-1. MANTENHA o sentido EXATO da mensagem original
-2. VARIE sinônimos, estrutura de frase e pontuação
-3. PRESERVE o tom (formal/informal) da mensagem original
-4. MANTENHA todos os emojis existentes (pode trocar por similares)
-5. NÃO adicione informações novas
-6. NÃO remova informações
-7. PRESERVE variáveis como {nome}, {empresa}, etc. EXATAMENTE como estão
-8. PRESERVE números, datas, valores, links e URLs EXATAMENTE como estão
-9. MANTENHA formatação WhatsApp (*negrito*, _itálico_, ~tachado~)
-10. Responda APENAS com a mensagem reescrita, sem explicações
+OBJETIVO PRINCIPAL: Cada mensagem deve parecer ter sido escrita por uma pessoa completamente diferente. Seja CRIATIVO!
 
-Objetivo: Fazer a mensagem parecer escrita manualmente por uma pessoa diferente.`;
+TÉCNICAS DE VARIAÇÃO (use várias combinadas):
+- Mude a ORDEM das informações (comece pelo fim, pelo meio, etc.)
+- Use SINÔNIMOS diferentes e expressões alternativas
+- Varie o ESTILO: mais direto, mais amigável, mais profissional, mais casual
+- Altere a ESTRUTURA: frases curtas vs longas, lista vs texto corrido
+- Mude saudações: "Oi", "Olá", "E aí", "Fala", "Opa", "Hey", ou comece sem saudação
+- Varie despedidas: "Abraço", "Até mais", "Valeu", "Beijos", ou sem despedida
+- Adicione ou remova interjeições naturais: "então", "né", "viu", "tá", "enfim"
+- Troque emojis por similares ou mude posição deles
+- Use pontuação diferente: !, !!, ..., ou sem pontuação extra
+
+REGRAS OBRIGATÓRIAS:
+1. PRESERVE o sentido e todas as informações essenciais
+2. PRESERVE variáveis {nome}, {empresa}, etc. EXATAMENTE como estão
+3. PRESERVE números, datas, valores, links e URLs sem alteração
+4. PRESERVE formatação WhatsApp (*negrito*, _itálico_, ~tachado~)
+5. Responda APENAS com a mensagem reescrita, nada mais
+
+IMPORTANTE: Cada chamada deve gerar uma versão SIGNIFICATIVAMENTE diferente. Não seja sutil - seja criativo!`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -53,10 +61,10 @@ Objetivo: Fazer a mensagem parecer escrita manualmente por uma pessoa diferente.
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Reescreva esta mensagem mantendo o mesmo significado:\n\n${message}` }
+          { role: 'user', content: `Reescreva esta mensagem de forma BEM DIFERENTE, como se outra pessoa tivesse escrito. Seja criativo na estrutura, ordem e estilo:\n\n${message}` }
         ],
         max_tokens: 500,
-        temperature: 0.8,
+        temperature: 1.0,
       }),
     });
 
