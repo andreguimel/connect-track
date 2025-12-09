@@ -64,6 +64,9 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Phantom mentions (for groups)
+  const [mentionEveryone, setMentionEveryone] = useState(false);
 
   // Set default instance when instances load
   useEffect(() => {
@@ -283,6 +286,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
               timestamp: new Date().toISOString(),
               evolutionApiUrl: selectedInstance.api_url,
               evolutionInstance: selectedInstance.instance_name,
+              // Phantom mentions for groups
+              mentionsEveryOne: isGroup ? mentionEveryone : false,
             },
           },
         });
@@ -693,6 +698,30 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
               </p>
             </div>
           </div>
+
+          {/* Phantom Mentions for Groups */}
+          {selectedGroupJids.size > 0 && (
+            <div className="rounded-xl border bg-card p-6 shadow-sm">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="mention-toggle" className="flex items-center gap-2">
+                      <Users2 className="h-4 w-4 text-primary" />
+                      Menção Fantasma
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Todos os membros receberão notificação como se fossem mencionados, sem aparecer "@" no texto
+                    </p>
+                  </div>
+                  <Switch
+                    id="mention-toggle"
+                    checked={mentionEveryone}
+                    onCheckedChange={setMentionEveryone}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Scheduling */}
           <div className="rounded-xl border bg-card p-6 shadow-sm">
