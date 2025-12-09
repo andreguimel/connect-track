@@ -27,29 +27,35 @@ serve(async (req) => {
 
     console.log('Variando mensagem:', message.substring(0, 50) + '...');
 
-const systemPrompt = `Você é um especialista em reescrever mensagens de WhatsApp de forma CRIATIVA e ÚNICA.
+const systemPrompt = `Você é um especialista em reescrever mensagens de forma SUTIL para evitar detecção de mensagens duplicadas.
 
-OBJETIVO PRINCIPAL: Cada mensagem deve parecer ter sido escrita por uma pessoa completamente diferente. Seja CRIATIVO!
+OBJETIVO: Fazer pequenas alterações na estrutura sem mudar o conteúdo ou adicionar elementos novos.
 
-TÉCNICAS DE VARIAÇÃO (use várias combinadas):
-- Mude a ORDEM das informações (comece pelo fim, pelo meio, etc.)
-- Use SINÔNIMOS diferentes e expressões alternativas
-- Varie o ESTILO: mais direto, mais amigável, mais profissional, mais casual
-- Altere a ESTRUTURA: frases curtas vs longas, lista vs texto corrido
-- Mude saudações: "Oi", "Olá", "E aí", "Fala", "Opa", "Hey", ou comece sem saudação
-- Varie despedidas: "Abraço", "Até mais", "Valeu", "Beijos", ou sem despedida
-- Adicione ou remova interjeições naturais: "então", "né", "viu", "tá", "enfim"
-- Troque emojis por similares ou mude posição deles
-- Use pontuação diferente: !, !!, ..., ou sem pontuação extra
+TÉCNICAS DE VARIAÇÃO PERMITIDAS:
+- Mude a ORDEM de algumas palavras ou frases
+- Use SINÔNIMOS simples (palavras diferentes com mesmo significado)
+- Varie conectivos: "e", "também", "além disso", "ainda"
+- Altere levemente a estrutura das frases
+- Mude saudações simples: "Oi", "Olá", "Olá!" (se existir)
+- Adicione ou remova palavras como: "então", "né", "viu", "tá"
+
+PROIBIDO - NÃO FAÇA:
+- NÃO adicione emojis ou ícones que não existiam na mensagem original
+- NÃO remova emojis que existiam na mensagem original
+- NÃO mude emojis por outros diferentes
+- NÃO adicione saudações se não tinha
+- NÃO adicione despedidas se não tinha
+- NÃO mude o tom da mensagem (formal/informal)
+- NÃO adicione informações novas
 
 REGRAS OBRIGATÓRIAS:
-1. PRESERVE o sentido e todas as informações essenciais
+1. PRESERVE exatamente os mesmos emojis nas mesmas posições (ou muito próximas)
 2. PRESERVE variáveis {nome}, {empresa}, etc. EXATAMENTE como estão
 3. PRESERVE números, datas, valores, links e URLs sem alteração
 4. PRESERVE formatação WhatsApp (*negrito*, _itálico_, ~tachado~)
 5. Responda APENAS com a mensagem reescrita, nada mais
 
-IMPORTANTE: Cada chamada deve gerar uma versão SIGNIFICATIVAMENTE diferente. Não seja sutil - seja criativo!`;
+A mensagem deve parecer quase igual, apenas com pequenas variações sutis.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -61,10 +67,10 @@ IMPORTANTE: Cada chamada deve gerar uma versão SIGNIFICATIVAMENTE diferente. N�
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Reescreva esta mensagem de forma BEM DIFERENTE, como se outra pessoa tivesse escrito. Seja criativo na estrutura, ordem e estilo:\n\n${message}` }
+          { role: 'user', content: `Reescreva esta mensagem com variações SUTIS. NÃO adicione emojis, ícones ou elementos novos. Apenas pequenas alterações na estrutura:\n\n${message}` }
         ],
         max_tokens: 500,
-        temperature: 1.0,
+        temperature: 0.7,
       }),
     });
 
