@@ -97,6 +97,8 @@ serve(async (req) => {
       isGroup,
       // Ensure required fields
       isTest: payload.isTest || false,
+      // Phantom mentions for groups
+      mentionsEveryOne: isGroup ? (payload.mentionsEveryOne || false) : false,
     };
 
     console.log('Enhanced payload:', {
