@@ -458,6 +458,31 @@ export function useCampaigns() {
       .update(updates)
       .eq('campaign_id', campaignId)
       .eq('contact_id', contactId);
+
+    // Recalculate and update campaign stats in real-time
+    await recalculateCampaignStats(campaignId);
+  };
+
+  const recalculateCampaignStats = async (campaignId: string) => {
+    const { data: contacts } = await supabase
+      .from('campaign_contacts')
+      .select('status')
+      .eq('campaign_id', campaignId);
+
+    if (!contacts) return;
+
+    const stats = {
+      total: contacts.length,
+      pending: contacts.filter(c => c.status === 'pending').length,
+      sent: contacts.filter(c => c.status === 'sent' || c.status === 'sending').length,
+      delivered: contacts.filter(c => c.status === 'delivered').length,
+      failed: contacts.filter(c => c.status === 'failed').length,
+    };
+
+    await supabase
+      .from('campaigns')
+      .update({ stats })
+      .eq('id', campaignId);
   };
 
   return { 
