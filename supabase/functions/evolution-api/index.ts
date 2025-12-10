@@ -53,8 +53,9 @@ serve(async (req) => {
 
     switch (action) {
       case 'create': {
-        // Create instance - support both WHATSAPP-BAILEYS (normal) and WHATSAPP-BUSINESS-BAILEYS (business app)
-        const integration = integrationType || 'WHATSAPP-BAILEYS';
+        // Create instance - support both WHATSAPP-BAILEYS (normal) and WHATSAPP-BUSINESS (business app)
+        // Note: Some Evolution API versions use WHATSAPP-BUSINESS instead of WHATSAPP-BUSINESS-BAILEYS
+        const integration = integrationType === 'WHATSAPP-BUSINESS-BAILEYS' ? 'WHATSAPP-BUSINESS' : (integrationType || 'WHATSAPP-BAILEYS');
         console.log(`Creating instance: ${instanceName} with integration: ${integration}`);
         const createResponse = await fetch(`${baseUrl}/instance/create`, {
           method: 'POST',
