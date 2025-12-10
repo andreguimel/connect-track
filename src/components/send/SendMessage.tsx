@@ -271,6 +271,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         const { data, error: proxyError } = await supabase.functions.invoke('n8n-proxy', {
           body: {
             webhookUrl,
+            instanceId: selectedInstanceId, // Pass the selected instance ID
             payload: {
               key: selectedInstance.api_key,
               recipientType: cc.recipient_type,
