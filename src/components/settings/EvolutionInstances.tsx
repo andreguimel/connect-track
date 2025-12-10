@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X, AlertTriangle } from 'lucide-react';
+import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X, AlertTriangle, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useEvolutionInstances, EvolutionInstance, IntegrationType } from '@/hooks/useEvolutionInstances';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -39,15 +40,18 @@ export function EvolutionInstances() {
   
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<EvolutionInstance | null>(null);
+  const [showTypeSelector, setShowTypeSelector] = useState(false);
+  const [showBusinessPhoneDialog, setShowBusinessPhoneDialog] = useState(false);
+  const [businessPhoneNumber, setBusinessPhoneNumber] = useState('');
   const [selectedInstance, setSelectedInstance] = useState<EvolutionInstance | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoadingQR, setIsLoadingQR] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [reconnectingInstance, setReconnectingInstance] = useState<string | null>(null);
-  
   
   // Track previous statuses to detect disconnections
   const previousStatusesRef = useRef<Record<string, string>>({});
@@ -115,14 +119,25 @@ export function EvolutionInstances() {
     return () => clearInterval(interval);
   }, [showQRDialog, selectedInstance, checkStatus, toast]);
 
-  const handleCreate = async (integrationType: IntegrationType = 'WHATSAPP-BAILEYS') => {
+  const handleCreate = async (integrationType: IntegrationType = 'WHATSAPP-BAILEYS', phoneNumber?: string) => {
     setIsCreating(true);
+    setShowTypeSelector(false);
+    setShowBusinessPhoneDialog(false);
     
-    const result = await createInstance(undefined, integrationType);
+    const result = await createInstance(undefined, integrationType, phoneNumber);
     
     setIsCreating(false);
+    setBusinessPhoneNumber('');
 
     if (result) {
+      // For business with pairing code
+      if (result.pairingCode) {
+        setPairingCode(result.pairingCode);
+        setSelectedInstance(result.instance);
+        setShowQRDialog(true);
+        return;
+      }
+      
       // Show QR code immediately
       if (result.qrcode?.base64) {
         setSelectedInstance(result.instance);
@@ -138,6 +153,18 @@ export function EvolutionInstances() {
         if (qr) setQrCode(qr);
       }
     }
+  };
+
+  const handleBusinessCreate = () => {
+    if (!businessPhoneNumber.trim()) {
+      toast({
+        title: 'Número obrigatório',
+        description: 'Informe o número do WhatsApp Business.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    handleCreate('WHATSAPP-BUSINESS-BAILEYS', businessPhoneNumber);
   };
 
   const handleGetQR = async (instance: EvolutionInstance) => {
@@ -229,30 +256,32 @@ export function EvolutionInstances() {
         </Alert>
       )}
 
-      {/* Header with Add Button */}
+      {/* Header with Add Buttons */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
             {instances.length}/3 conexões
           </p>
         </div>
-        <Button 
-          onClick={() => handleCreate('WHATSAPP-BAILEYS')} 
-          disabled={instances.length >= 3 || isCreating}
-          size="sm"
-        >
-          {isCreating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Conectando...
-            </>
-          ) : (
-            <>
-              <QrCode className="mr-2 h-4 w-4" />
-              Conectar WhatsApp
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setShowTypeSelector(true)} 
+            disabled={instances.length >= 3 || isCreating}
+            size="sm"
+          >
+            {isCreating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Conectando...
+              </>
+            ) : (
+              <>
+                <QrCode className="mr-2 h-4 w-4" />
+                Conectar WhatsApp
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Instances List */}
@@ -434,16 +463,19 @@ export function EvolutionInstances() {
         </div>
       )}
 
-      {/* QR Code Dialog */}
+      {/* QR Code / Pairing Code Dialog */}
       <Dialog open={showQRDialog} onOpenChange={(open) => {
         setShowQRDialog(open);
-        if (!open) setQrCode(null);
+        if (!open) {
+          setQrCode(null);
+          setPairingCode(null);
+        }
       }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Conectar WhatsApp</DialogTitle>
             <DialogDescription>
-              Escaneie o QR Code com seu WhatsApp
+              {pairingCode ? 'Use o código de pareamento no seu WhatsApp Business' : 'Escaneie o QR Code com seu WhatsApp'}
             </DialogDescription>
           </DialogHeader>
           
@@ -451,6 +483,21 @@ export function EvolutionInstances() {
             {isLoadingQR ? (
               <div className="flex h-64 w-64 items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : pairingCode ? (
+              <div className="flex flex-col items-center gap-4">
+                <div className="rounded-lg bg-emerald-500/10 px-8 py-6">
+                  <p className="text-center font-mono text-4xl font-bold tracking-widest text-emerald-600">
+                    {pairingCode}
+                  </p>
+                </div>
+                <div className="text-center text-sm text-muted-foreground">
+                  <p>1. Abra o WhatsApp Business</p>
+                  <p>2. Vá em Configurações → Aparelhos Conectados</p>
+                  <p>3. Toque em "Conectar um aparelho"</p>
+                  <p>4. Escolha "Conectar com número de telefone"</p>
+                  <p>5. Digite o código acima</p>
+                </div>
               </div>
             ) : qrCode ? (
               <div className="rounded-lg bg-white p-4">
@@ -466,9 +513,11 @@ export function EvolutionInstances() {
               </div>
             )}
             
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Abra o WhatsApp no seu celular → Configurações → Aparelhos Conectados → Conectar
-            </p>
+            {!pairingCode && (
+              <p className="mt-4 text-center text-sm text-muted-foreground">
+                Abra o WhatsApp no seu celular → Configurações → Aparelhos Conectados → Conectar
+              </p>
+            )}
             
             {selectedInstance?.status === 'connecting' && (
               <div className="mt-4 flex items-center gap-2 text-sm text-warning">
@@ -479,14 +528,16 @@ export function EvolutionInstances() {
           </div>
           
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => selectedInstance && handleGetQR(selectedInstance)}
-              disabled={isLoadingQR}
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingQR ? 'animate-spin' : ''}`} />
-              Novo QR Code
-            </Button>
+            {!pairingCode && (
+              <Button 
+                variant="outline" 
+                onClick={() => selectedInstance && handleGetQR(selectedInstance)}
+                disabled={isLoadingQR}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingQR ? 'animate-spin' : ''}`} />
+                Novo QR Code
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -508,6 +559,98 @@ export function EvolutionInstances() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Type Selector Dialog */}
+      <Dialog open={showTypeSelector} onOpenChange={setShowTypeSelector}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Escolha o tipo de conexão</DialogTitle>
+            <DialogDescription>
+              Selecione qual WhatsApp deseja conectar
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <Button
+              variant="outline"
+              className="h-auto flex-col items-start gap-2 p-4 text-left"
+              onClick={() => {
+                setShowTypeSelector(false);
+                handleCreate('WHATSAPP-BAILEYS');
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Phone className="h-5 w-5 text-primary" />
+                <span className="font-medium">WhatsApp Normal</span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Conecta via QR Code - WhatsApp padrão ou pessoal
+              </span>
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="h-auto flex-col items-start gap-2 p-4 text-left"
+              onClick={() => {
+                setShowTypeSelector(false);
+                setShowBusinessPhoneDialog(true);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-emerald-600" />
+                <span className="font-medium">WhatsApp Business App</span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Conecta via código de pareamento - Requer número do telefone
+              </span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Business Phone Dialog */}
+      <Dialog open={showBusinessPhoneDialog} onOpenChange={setShowBusinessPhoneDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>WhatsApp Business</DialogTitle>
+            <DialogDescription>
+              Informe o número do WhatsApp Business para receber o código de pareamento
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="business-phone">Número do telefone</Label>
+              <Input
+                id="business-phone"
+                placeholder="5511999999999"
+                value={businessPhoneNumber}
+                onChange={(e) => setBusinessPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Formato: código do país + DDD + número (ex: 5511999999999)
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBusinessPhoneDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleBusinessCreate} disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                'Conectar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

@@ -47,7 +47,7 @@ export function useEvolutionInstances() {
     fetchInstances();
   }, [fetchInstances]);
 
-  const createInstance = async (name?: string, integrationType: IntegrationType = 'WHATSAPP-BAILEYS') => {
+  const createInstance = async (name?: string, integrationType: IntegrationType = 'WHATSAPP-BAILEYS', phoneNumber?: string) => {
     if (!user) return null;
 
     // Check if user already has 3 instances
@@ -72,6 +72,7 @@ export function useEvolutionInstances() {
           action: 'create',
           instanceName,
           integrationType,
+          phoneNumber: isBusinessApp ? phoneNumber : undefined,
         },
       });
 
@@ -89,6 +90,7 @@ export function useEvolutionInstances() {
           instance_name: instanceName,
           status: 'disconnected',
           integration_type: integrationType,
+          phone_number: phoneNumber,
         })
         .select()
         .single();
@@ -100,6 +102,7 @@ export function useEvolutionInstances() {
       return {
         instance: instance as EvolutionInstance,
         qrcode: apiResponse.qrcode,
+        pairingCode: apiResponse.pairingCode,
       };
     } catch (error: any) {
       console.error('Error creating instance:', error);

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, instanceName, instanceId, integrationType } = await req.json();
+    const { action, instanceName, instanceId, integrationType, phoneNumber } = await req.json();
     
     console.log(`Evolution API action: ${action}, instance: ${instanceName}`);
 
@@ -53,21 +53,36 @@ serve(async (req) => {
 
     switch (action) {
       case 'create': {
-        // Create instance - support both WHATSAPP-BAILEYS (normal) and WHATSAPP-BUSINESS (business app)
-        // Note: Some Evolution API versions use WHATSAPP-BUSINESS instead of WHATSAPP-BUSINESS-BAILEYS
-        const integration = integrationType === 'WHATSAPP-BUSINESS-BAILEYS' ? 'WHATSAPP-BUSINESS' : (integrationType || 'WHATSAPP-BAILEYS');
+        // Determine the correct integration type
+        // WHATSAPP-BAILEYS = WhatsApp normal via QR Code
+        // WHATSAPP-BUSINESS = WhatsApp Business App (requires phone number)
+        const isBusinessApp = integrationType === 'WHATSAPP-BUSINESS-BAILEYS';
+        const integration = isBusinessApp ? 'WHATSAPP-BUSINESS' : 'WHATSAPP-BAILEYS';
+        
         console.log(`Creating instance: ${instanceName} with integration: ${integration}`);
         
         // Generate a unique token for the instance
         const instanceToken = crypto.randomUUID();
         
-        // Build the payload - some Evolution API versions require different fields
+        // Build the payload
         const createPayload: Record<string, unknown> = {
           instanceName,
           qrcode: true,
           integration,
           token: instanceToken,
         };
+        
+        // WhatsApp Business requires a phone number
+        if (isBusinessApp) {
+          if (!phoneNumber) {
+            throw new Error('Número de telefone é obrigatório para WhatsApp Business');
+          }
+          // Format phone number (remove non-digits and ensure proper format)
+          const formattedNumber = phoneNumber.replace(/\D/g, '');
+          createPayload.number = formattedNumber;
+          // For business, we might need pairing code instead of QR
+          createPayload.qrcode = false;
+        }
         
         console.log('Create payload:', JSON.stringify(createPayload));
         
@@ -81,13 +96,14 @@ serve(async (req) => {
         console.log('Create response:', JSON.stringify(createData));
         
         if (!createResponse.ok) {
-          throw new Error(createData.message || 'Failed to create instance');
+          throw new Error(createData.message || createData.error || 'Failed to create instance');
         }
 
         result = {
           success: true,
           instance: createData.instance,
           qrcode: createData.qrcode,
+          pairingCode: createData.pairingCode,
         };
         break;
       }
