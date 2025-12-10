@@ -70,15 +70,16 @@ export function EvolutionInstances() {
     return () => clearInterval(interval);
   }, [instances, checkStatus]);
 
-  // Heartbeat: periodic status check for all instances (every 30 seconds)
+  // Heartbeat: periodic status check for ALL instances (every 30 seconds)
+  // This ensures disconnected instances auto-sync when they reconnect externally
   useEffect(() => {
     if (instances.length === 0) return;
 
     const interval = setInterval(async () => {
       for (const instance of instances) {
-        if (instance.status === 'connected') {
-          await checkStatus(instance);
-        }
+        // Check all instances, not just connected ones
+        // This allows auto-sync when Evolution API status changes
+        await checkStatus(instance);
       }
     }, 30000);
 
