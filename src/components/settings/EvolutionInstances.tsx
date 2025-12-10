@@ -186,6 +186,14 @@ export function EvolutionInstances() {
     
     if (qr) {
       setQrCode(qr);
+    } else {
+      // No QR code returned - might be a Business instance
+      toast({
+        title: 'QR Code não disponível',
+        description: 'Esta instância pode não suportar QR Code.',
+        variant: 'destructive',
+      });
+      setShowQRDialog(false);
     }
   };
 
@@ -196,6 +204,17 @@ export function EvolutionInstances() {
   };
 
   const handleReconnect = async (instance: EvolutionInstance) => {
+    const isBusinessApp = instance.integration_type === 'WHATSAPP-BUSINESS-BAILEYS';
+    
+    // For Business instances, show phone number dialog instead of QR code
+    if (isBusinessApp) {
+      setBusinessPhoneNumber(instance.phone_number || '');
+      setShowBusinessPhoneDialog(true);
+      // Delete old instance and create new one with same number
+      await deleteInstance(instance);
+      return;
+    }
+    
     setReconnectingInstance(instance.id);
     setSelectedInstance(instance);
     setShowQRDialog(true);
@@ -207,6 +226,13 @@ export function EvolutionInstances() {
     
     if (qr) {
       setQrCode(qr);
+    } else {
+      toast({
+        title: 'QR Code não disponível',
+        description: 'Não foi possível gerar o QR Code.',
+        variant: 'destructive',
+      });
+      setShowQRDialog(false);
     }
   };
 
