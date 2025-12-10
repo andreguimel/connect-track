@@ -193,15 +193,19 @@ serve(async (req) => {
           continue;
         }
         
-        // Handle object format
-        const participant = p as { id?: string; jid?: string; admin?: string | null };
-        const whatsappId = participant.jid || participant.id || '';
+        // Handle object format - Evolution API returns phoneNumber field with @s.whatsapp.net
+        const participant = p as { id?: string; jid?: string; phoneNumber?: string; admin?: string | null; name?: string };
+        
+        // Try phoneNumber first (new Evolution API format), then jid, then id
+        const whatsappId = participant.phoneNumber || participant.jid || participant.id || '';
         
         if (whatsappId.endsWith('@s.whatsapp.net')) {
           const phoneNumber = whatsappId.replace('@s.whatsapp.net', '');
+          // Use name from participant if available, otherwise from contacts map
+          const name = participant.name || contactsMap.get(phoneNumber) || '';
           mappedContacts.push({
             phoneNumber,
-            name: contactsMap.get(phoneNumber) || '',
+            name,
             isAdmin: participant.admin === 'admin' || participant.admin === 'superadmin',
           });
         }
