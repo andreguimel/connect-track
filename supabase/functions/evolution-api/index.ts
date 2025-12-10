@@ -61,15 +61,20 @@ serve(async (req) => {
         // Generate a unique token for the instance
         const instanceToken = crypto.randomUUID();
         
+        // Build the payload - some Evolution API versions require different fields
+        const createPayload: Record<string, unknown> = {
+          instanceName,
+          qrcode: true,
+          integration,
+          token: instanceToken,
+        };
+        
+        console.log('Create payload:', JSON.stringify(createPayload));
+        
         const createResponse = await fetch(`${baseUrl}/instance/create`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({
-            instanceName,
-            qrcode: true,
-            integration,
-            token: instanceToken,
-          }),
+          body: JSON.stringify(createPayload),
         });
         
         const createData = await createResponse.json();
