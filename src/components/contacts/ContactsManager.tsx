@@ -46,8 +46,8 @@ const GROUP_COLORS = [
 
 export function ContactsManager() {
   const { toast } = useToast();
-  const { contacts, loading, addContacts, updateContact, deleteContact: removeContact } = useContacts();
-  const { groups, addGroup, updateGroup: editGroup, deleteGroup: removeGroup } = useGroups();
+  const { contacts, loading, fetchContacts, addContacts, updateContact, deleteContact: removeContact } = useContacts();
+  const { groups, fetchGroups, addGroup, updateGroup: editGroup, deleteGroup: removeGroup } = useGroups();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
@@ -314,7 +314,7 @@ export function ContactsManager() {
           </label>
           <input id="csv-upload" type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
 
-          <ImportWhatsAppContacts />
+          <ImportWhatsAppContacts onImportComplete={fetchContacts} />
 
           <Dialog open={isGroupDialogOpen} onOpenChange={(open) => {
             setIsGroupDialogOpen(open);
