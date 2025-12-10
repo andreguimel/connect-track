@@ -32,7 +32,7 @@ export function useEvolutionInstances() {
       const { data, error } = await supabase
         .from('evolution_instances')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       setInstances((data || []) as EvolutionInstance[]);
