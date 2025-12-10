@@ -13,9 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    const { webhookUrl, payload } = await req.json();
+    const { webhookUrl, payload, instanceId } = await req.json();
 
-    console.log('Proxying request to n8n:', { webhookUrl, payload });
+    console.log('Proxying request to n8n:', { webhookUrl, instanceId, payload });
 
     if (!webhookUrl) {
       throw new Error('webhookUrl is required');
@@ -48,25 +48,49 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Get user's connected instance
-    const { data: instances, error: instanceError } = await supabase
-      .from('evolution_instances')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'connected')
-      .limit(1);
+    // Get user's specified instance or fall back to first connected instance
+    let instance;
+    if (instanceId) {
+      // Get specific instance selected by user
+      const { data: specificInstance, error: specificError } = await supabase
+        .from('evolution_instances')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('id', instanceId)
+        .single();
+      
+      if (specificError || !specificInstance) {
+        console.error('Error fetching specific instance:', specificError);
+        throw new Error('Instância selecionada não encontrada');
+      }
+      
+      if (specificInstance.status !== 'connected') {
+        throw new Error('A instância selecionada não está conectada');
+      }
+      
+      instance = specificInstance;
+    } else {
+      // Fallback: Get first connected instance
+      const { data: instances, error: instanceError } = await supabase
+        .from('evolution_instances')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'connected')
+        .limit(1);
 
-    if (instanceError) {
-      console.error('Error fetching instance:', instanceError);
-      throw new Error('Failed to fetch Evolution instance');
+      if (instanceError) {
+        console.error('Error fetching instance:', instanceError);
+        throw new Error('Failed to fetch Evolution instance');
+      }
+
+      if (!instances || instances.length === 0) {
+        throw new Error('No connected WhatsApp instance found. Please connect your WhatsApp first.');
+      }
+      
+      instance = instances[0];
     }
-
-    if (!instances || instances.length === 0) {
-      throw new Error('No connected WhatsApp instance found. Please connect your WhatsApp first.');
-    }
-
-    const instance = instances[0];
-    console.log('Using Evolution instance:', instance.instance_name);
+    
+    console.log('Using Evolution instance:', instance.instance_name, 'Type:', instance.integration_type);
 
     // Determine if recipient is a group or individual contact
     const isGroup = payload.recipientType === 'group' && payload.groupJid;
