@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X, AlertTriangle, Briefcase, Smartphone } from 'lucide-react';
+import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -47,7 +47,7 @@ export function EvolutionInstances() {
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [reconnectingInstance, setReconnectingInstance] = useState<string | null>(null);
-  const [showTypeSelector, setShowTypeSelector] = useState(false);
+  
   
   // Track previous statuses to detect disconnections
   const previousStatusesRef = useRef<Record<string, string>>({});
@@ -116,7 +116,6 @@ export function EvolutionInstances() {
   }, [showQRDialog, selectedInstance, checkStatus, toast]);
 
   const handleCreate = async (integrationType: IntegrationType = 'WHATSAPP-BAILEYS') => {
-    setShowTypeSelector(false);
     setIsCreating(true);
     
     const result = await createInstance(undefined, integrationType);
@@ -238,7 +237,7 @@ export function EvolutionInstances() {
           </p>
         </div>
         <Button 
-          onClick={() => setShowTypeSelector(true)} 
+          onClick={() => handleCreate('WHATSAPP-BAILEYS')} 
           disabled={instances.length >= 3 || isCreating}
           size="sm"
         >
@@ -265,7 +264,7 @@ export function EvolutionInstances() {
             Adicione uma conexão para enviar mensagens
           </p>
           <Button 
-            onClick={() => setShowTypeSelector(true)} 
+            onClick={() => handleCreate('WHATSAPP-BAILEYS')} 
             className="mt-4"
             variant="outline"
             disabled={isCreating}
@@ -291,16 +290,8 @@ export function EvolutionInstances() {
               className="flex items-center justify-between rounded-lg border bg-background p-4"
             >
               <div className="flex items-center gap-4">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                  instance.integration_type === 'WHATSAPP-BUSINESS-BAILEYS' 
-                    ? 'bg-emerald-500/10' 
-                    : 'bg-primary/10'
-                }`}>
-                  {instance.integration_type === 'WHATSAPP-BUSINESS-BAILEYS' ? (
-                    <Briefcase className="h-5 w-5 text-emerald-500" />
-                  ) : (
-                    <Phone className="h-5 w-5 text-primary" />
-                  )}
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <Phone className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   {editingInstance === instance.id ? (
@@ -518,53 +509,6 @@ export function EvolutionInstances() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* WhatsApp Type Selector Dialog */}
-      <Dialog open={showTypeSelector} onOpenChange={setShowTypeSelector}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Conectar WhatsApp</DialogTitle>
-            <DialogDescription>
-              Qual tipo de WhatsApp você quer conectar?
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <button
-              onClick={() => handleCreate('WHATSAPP-BAILEYS')}
-              className="flex flex-col items-center gap-3 rounded-lg border-2 border-border bg-background p-6 transition-all hover:border-primary hover:bg-primary/5"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <Smartphone className="h-7 w-7 text-primary" />
-              </div>
-              <div className="text-center">
-                <p className="font-medium text-foreground">WhatsApp Normal</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Para contas pessoais
-                </p>
-              </div>
-            </button>
-            
-            <button
-              onClick={() => handleCreate('WHATSAPP-BUSINESS-BAILEYS')}
-              className="flex flex-col items-center gap-3 rounded-lg border-2 border-border bg-background p-6 transition-all hover:border-emerald-500 hover:bg-emerald-500/5"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
-                <Briefcase className="h-7 w-7 text-emerald-500" />
-              </div>
-              <div className="text-center">
-                <p className="font-medium text-foreground">WhatsApp Business</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Para o app Business (verde)
-                </p>
-              </div>
-            </button>
-          </div>
-          
-          <p className="text-center text-xs text-muted-foreground">
-            Ambos usam QR Code para conexão. Escolha baseado no app instalado no seu celular.
-          </p>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
