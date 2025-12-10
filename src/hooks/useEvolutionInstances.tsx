@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
+export type IntegrationType = 'WHATSAPP-BAILEYS' | 'WHATSAPP-BUSINESS-BAILEYS';
+
 export interface EvolutionInstance {
   id: string;
   user_id: string;
@@ -12,6 +14,7 @@ export interface EvolutionInstance {
   instance_name: string;
   status: 'disconnected' | 'connecting' | 'connected';
   phone_number?: string;
+  integration_type: IntegrationType;
   created_at: string;
   updated_at: string;
 }
@@ -44,7 +47,7 @@ export function useEvolutionInstances() {
     fetchInstances();
   }, [fetchInstances]);
 
-  const createInstance = async (name?: string) => {
+  const createInstance = async (name?: string, integrationType: IntegrationType = 'WHATSAPP-BAILEYS') => {
     if (!user) return null;
 
     // Check if user already has 3 instances
@@ -58,7 +61,8 @@ export function useEvolutionInstances() {
     }
 
     // Auto-generate name if not provided
-    const displayName = name || `WhatsApp ${instances.length + 1}`;
+    const isBusinessApp = integrationType === 'WHATSAPP-BUSINESS-BAILEYS';
+    const displayName = name || `WhatsApp ${isBusinessApp ? 'Business ' : ''}${instances.length + 1}`;
     const instanceName = `whatsapp_${user.id.slice(0, 8)}_${Date.now()}`;
 
     try {
@@ -67,6 +71,7 @@ export function useEvolutionInstances() {
         body: {
           action: 'create',
           instanceName,
+          integrationType,
         },
       });
 
@@ -83,6 +88,7 @@ export function useEvolutionInstances() {
           api_key: 'default',
           instance_name: instanceName,
           status: 'disconnected',
+          integration_type: integrationType,
         })
         .select()
         .single();

@@ -166,6 +166,7 @@ export type Database = {
           created_at: string
           id: string
           instance_name: string
+          integration_type: string
           name: string
           phone_number: string | null
           status: string
@@ -178,6 +179,7 @@ export type Database = {
           created_at?: string
           id?: string
           instance_name: string
+          integration_type?: string
           name: string
           phone_number?: string | null
           status?: string
@@ -190,6 +192,7 @@ export type Database = {
           created_at?: string
           id?: string
           instance_name?: string
+          integration_type?: string
           name?: string
           phone_number?: string | null
           status?: string
