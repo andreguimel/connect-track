@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { ImpersonationProvider } from "@/hooks/useImpersonation";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Landing from "./pages/Landing";
@@ -33,6 +35,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 const AppRoutes = () => (
   <BrowserRouter>
+    <ImpersonationBanner />
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/planos" element={<Landing />} />
@@ -60,11 +63,13 @@ const AppRoutes = () => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AppRoutes />
-      </TooltipProvider>
+      <ImpersonationProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AppRoutes />
+        </TooltipProvider>
+      </ImpersonationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
