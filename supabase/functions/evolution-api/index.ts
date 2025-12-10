@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, instanceName, instanceId } = await req.json();
+    const { action, instanceName, instanceId, integrationType } = await req.json();
     
     console.log(`Evolution API action: ${action}, instance: ${instanceName}`);
 
@@ -53,15 +53,16 @@ serve(async (req) => {
 
     switch (action) {
       case 'create': {
-        // Create instance
-        console.log(`Creating instance: ${instanceName}`);
+        // Create instance - support both WHATSAPP-BAILEYS (normal) and WHATSAPP-BUSINESS-BAILEYS (business app)
+        const integration = integrationType || 'WHATSAPP-BAILEYS';
+        console.log(`Creating instance: ${instanceName} with integration: ${integration}`);
         const createResponse = await fetch(`${baseUrl}/instance/create`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
             instanceName,
             qrcode: true,
-            integration: 'WHATSAPP-BAILEYS',
+            integration,
           }),
         });
         
