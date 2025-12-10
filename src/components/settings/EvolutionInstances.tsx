@@ -628,7 +628,9 @@ export function EvolutionInstances() {
               className="h-auto flex-col items-start gap-2 p-4 text-left"
               onClick={() => {
                 setShowTypeSelector(false);
-                setShowBusinessPhoneDialog(true);
+                // WhatsApp Business App also uses QR Code (WHATSAPP-BAILEYS)
+                // The WHATSAPP-BUSINESS integration is for Cloud API (requires Meta Business Manager)
+                handleCreate('WHATSAPP-BAILEYS');
               }}
             >
               <div className="flex items-center gap-2">
@@ -636,54 +638,14 @@ export function EvolutionInstances() {
                 <span className="font-medium">WhatsApp Business App</span>
               </div>
               <span className="text-xs text-muted-foreground">
-                Conecta via código de pareamento - Requer número do telefone
+                Conecta via QR Code - Aplicativo WhatsApp Business
               </span>
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Business Phone Dialog */}
-      <Dialog open={showBusinessPhoneDialog} onOpenChange={setShowBusinessPhoneDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>WhatsApp Business</DialogTitle>
-            <DialogDescription>
-              Informe o número do WhatsApp Business para receber o código de pareamento
-            </DialogDescription>
-          </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="business-phone">Número do telefone</Label>
-              <Input
-                id="business-phone"
-                placeholder="5511999999999"
-                value={businessPhoneNumber}
-                onChange={(e) => setBusinessPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Formato: código do país + DDD + número (ex: 5511999999999)
-              </p>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBusinessPhoneDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleBusinessCreate} disabled={isCreating}>
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Conectando...
-                </>
-              ) : (
-                'Conectar'
-              )}
-            </Button>
-          </DialogFooter>
+          <p className="text-xs text-muted-foreground text-center">
+            Ambos conectam via QR Code. Abra o WhatsApp → Configurações → Aparelhos Conectados
+          </p>
         </DialogContent>
       </Dialog>
 
