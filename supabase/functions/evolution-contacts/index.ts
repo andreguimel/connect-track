@@ -160,26 +160,54 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      console.log('Fetched participants count:', data?.participants?.length || 0);
+      console.log('Raw participants response:', JSON.stringify(data).substring(0, 1000));
+      
+      // Handle different response formats from Evolution API
+      let participants: unknown[] = [];
+      if (Array.isArray(data)) {
+        participants = data;
+      } else if (data?.participants && Array.isArray(data.participants)) {
+        participants = data.participants;
+      } else if (data?.data && Array.isArray(data.data)) {
+        participants = data.data;
+      }
+      
+      console.log('Participants array length:', participants.length);
+      if (participants.length > 0) {
+        console.log('First participant sample:', JSON.stringify(participants[0]));
+      }
 
-      // Map participants to our format - Evolution API returns 'jid' for the WhatsApp ID
-      const participants = data?.participants || data || [];
+      const mappedContacts: WhatsAppContact[] = [];
       
-      contacts = participants
-        .filter((p: { id?: string; jid?: string }) => {
-          const whatsappId = p.jid || p.id;
-          return whatsappId && whatsappId.endsWith('@s.whatsapp.net');
-        })
-        .map((p: { id?: string; jid?: string; admin?: string | null }) => {
-          const phoneNumber = (p.jid || p.id || '').replace('@s.whatsapp.net', '');
-          const name = contactsMap.get(phoneNumber) || '';
-          return {
+      for (const p of participants) {
+        // Handle string format (just the jid)
+        if (typeof p === 'string') {
+          if (p.endsWith('@s.whatsapp.net')) {
+            const phoneNumber = p.replace('@s.whatsapp.net', '');
+            mappedContacts.push({
+              phoneNumber,
+              name: contactsMap.get(phoneNumber) || '',
+              isAdmin: false,
+            });
+          }
+          continue;
+        }
+        
+        // Handle object format
+        const participant = p as { id?: string; jid?: string; admin?: string | null };
+        const whatsappId = participant.jid || participant.id || '';
+        
+        if (whatsappId.endsWith('@s.whatsapp.net')) {
+          const phoneNumber = whatsappId.replace('@s.whatsapp.net', '');
+          mappedContacts.push({
             phoneNumber,
-            name,
-            isAdmin: p.admin === 'admin' || p.admin === 'superadmin',
-          };
-        });
+            name: contactsMap.get(phoneNumber) || '',
+            isAdmin: participant.admin === 'admin' || participant.admin === 'superadmin',
+          });
+        }
+      }
       
+      contacts = mappedContacts;
       console.log('Mapped participants count:', contacts.length);
 
     } else {
