@@ -138,6 +138,7 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
       const { data, error } = await supabase.functions.invoke('n8n-proxy', {
         body: {
           webhookUrl: localWebhookUrl,
+          instanceId: selectedInstanceId,
           payload,
         },
       });

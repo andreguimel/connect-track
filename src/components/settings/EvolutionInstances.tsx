@@ -412,15 +412,22 @@ export function EvolutionInstances() {
                       </Button>
                     </div>
                   )}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs text-muted-foreground font-mono">
                       {instance.instance_name}
                     </p>
-                    {instance.integration_type === 'WHATSAPP-BUSINESS-BAILEYS' && (
-                      <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
-                        Business
-                      </span>
-                    )}
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      instance.integration_type === 'WHATSAPP-BUSINESS-BAILEYS' 
+                        ? 'bg-emerald-500/10 text-emerald-600' 
+                        : 'bg-blue-500/10 text-blue-600'
+                    }`}>
+                      {instance.integration_type === 'WHATSAPP-BUSINESS-BAILEYS' 
+                        ? 'Business App' 
+                        : 'WhatsApp Web'}
+                    </span>
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      via Evolution API
+                    </span>
                   </div>
                 </div>
               </div>
