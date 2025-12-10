@@ -130,27 +130,21 @@ export function EvolutionInstances() {
     setBusinessPhoneNumber('');
 
     if (result) {
-      const isBusinessApp = integrationType === 'WHATSAPP-BUSINESS-BAILEYS';
+      // If already connected (common for WhatsApp Business), show success toast
+      if (result.alreadyConnected) {
+        toast({
+          title: 'Conectado!',
+          description: `${result.instance.name} conectado com sucesso.`,
+        });
+        return;
+      }
       
-      // For WhatsApp Business, check if already connected (no QR/pairing needed)
-      if (isBusinessApp) {
-        // Check status immediately
-        const status = await checkStatus(result.instance);
-        if (status === 'connected') {
-          toast({
-            title: 'Conectado!',
-            description: `${result.instance.name} conectado com sucesso via WhatsApp Business.`,
-          });
-          return;
-        }
-        
-        // If has pairing code, show it
-        if (result.pairingCode) {
-          setPairingCode(result.pairingCode);
-          setSelectedInstance(result.instance);
-          setShowQRDialog(true);
-          return;
-        }
+      // For business with pairing code
+      if (result.pairingCode) {
+        setPairingCode(result.pairingCode);
+        setSelectedInstance(result.instance);
+        setShowQRDialog(true);
+        return;
       }
       
       // Show QR code immediately (for normal WhatsApp)

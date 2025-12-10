@@ -79,7 +79,10 @@ export function useEvolutionInstances() {
       if (apiError) throw apiError;
       if (!apiResponse.success) throw new Error(apiResponse.error);
 
-      // Save instance to database with placeholder values (actual API uses env vars)
+      // Check if Evolution API already connected the instance (common for Business)
+      const isAlreadyConnected = apiResponse.instance?.status === 'open';
+      
+      // Save instance to database with correct status
       const { data: instance, error: dbError } = await supabase
         .from('evolution_instances')
         .insert({
@@ -88,7 +91,7 @@ export function useEvolutionInstances() {
           api_url: 'default',
           api_key: 'default',
           instance_name: instanceName,
-          status: 'disconnected',
+          status: isAlreadyConnected ? 'connected' : 'disconnected',
           integration_type: integrationType,
           phone_number: phoneNumber,
         })
@@ -103,6 +106,7 @@ export function useEvolutionInstances() {
         instance: instance as EvolutionInstance,
         qrcode: apiResponse.qrcode,
         pairingCode: apiResponse.pairingCode,
+        alreadyConnected: isAlreadyConnected,
       };
     } catch (error: any) {
       console.error('Error creating instance:', error);
