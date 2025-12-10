@@ -57,6 +57,10 @@ serve(async (req) => {
         // Note: Some Evolution API versions use WHATSAPP-BUSINESS instead of WHATSAPP-BUSINESS-BAILEYS
         const integration = integrationType === 'WHATSAPP-BUSINESS-BAILEYS' ? 'WHATSAPP-BUSINESS' : (integrationType || 'WHATSAPP-BAILEYS');
         console.log(`Creating instance: ${instanceName} with integration: ${integration}`);
+        
+        // Generate a unique token for the instance
+        const instanceToken = crypto.randomUUID();
+        
         const createResponse = await fetch(`${baseUrl}/instance/create`, {
           method: 'POST',
           headers,
@@ -64,6 +68,7 @@ serve(async (req) => {
             instanceName,
             qrcode: true,
             integration,
+            token: instanceToken,
           }),
         });
         
