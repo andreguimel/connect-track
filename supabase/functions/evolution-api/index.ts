@@ -80,8 +80,7 @@ serve(async (req) => {
           // Format phone number (remove non-digits and ensure proper format)
           const formattedNumber = phoneNumber.replace(/\D/g, '');
           createPayload.number = formattedNumber;
-          // For business, we might need pairing code instead of QR
-          createPayload.qrcode = false;
+          // Keep qrcode: true for Business as well - user still needs to scan QR
         }
         
         console.log('Create payload:', JSON.stringify(createPayload));
@@ -99,10 +98,23 @@ serve(async (req) => {
           throw new Error(createData.message || createData.error || 'Failed to create instance');
         }
 
+        // If no QR code returned on create, fetch it via connect endpoint
+        let qrcode = createData.qrcode;
+        if (!qrcode?.base64 && !createData.base64) {
+          console.log('No QR on create, fetching via connect endpoint...');
+          const connectResponse = await fetch(`${baseUrl}/instance/connect/${instanceName}`, {
+            method: 'GET',
+            headers,
+          });
+          const connectData = await connectResponse.json();
+          console.log('Connect after create response:', JSON.stringify(connectData));
+          qrcode = connectData.base64 ? { base64: connectData.base64 } : connectData.qrcode;
+        }
+
         result = {
           success: true,
           instance: createData.instance,
-          qrcode: createData.qrcode,
+          qrcode: qrcode,
           pairingCode: createData.pairingCode,
         };
         break;
