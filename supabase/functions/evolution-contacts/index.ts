@@ -94,9 +94,12 @@ serve(async (req) => {
             const jid = c.remoteJid || c.id || '';
             if (jid.endsWith('@s.whatsapp.net')) {
               const phoneNumber = jid.replace('@s.whatsapp.net', '');
-              // IMPORTANT: Extract name from lastMessage.pushName as primary source
-              const nameFromLastMessage = c.lastMessage?.pushName || '';
-              const name = nameFromLastMessage || c.pushName || c.name || c.notify || c.verifiedName || c.displayName || '';
+              // FIXED: Only use lastMessage.pushName if message is FROM the contact (not fromMe)
+              // This prevents "Você" appearing as the name when the last message was sent by the user
+              const isFromContact = c.lastMessage?.key?.fromMe === false;
+              const nameFromLastMessage = isFromContact ? (c.lastMessage?.pushName || '') : '';
+              // Priority: chat pushName > lastMessage pushName (only if from contact) > other fields
+              const name = c.pushName || nameFromLastMessage || c.name || c.notify || c.verifiedName || c.displayName || '';
               contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
             }
           }
@@ -199,6 +202,9 @@ serve(async (req) => {
           if (Array.isArray(messages)) {
             let namesFromMessages = 0;
             for (const msg of messages) {
+              // FIXED: Only use pushName from messages sent BY the contact (not fromMe)
+              if (msg.key?.fromMe === true) continue;
+              
               const jid = msg.key?.remoteJid || msg.remoteJid || '';
               if (jid.endsWith('@s.whatsapp.net')) {
                 const phoneNumber = jid.replace('@s.whatsapp.net', '');
