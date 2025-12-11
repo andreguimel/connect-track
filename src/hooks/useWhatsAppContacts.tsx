@@ -16,12 +16,29 @@ export function useWhatsAppContacts() {
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<WhatsAppContact[]>([]);
 
-  // Helper function to get existing contacts fresh from database
+  // Helper function to get existing contacts fresh from database (paginated to handle >1000)
   const getExistingPhones = async (): Promise<Set<string>> => {
-    const { data } = await supabase
-      .from('contacts')
-      .select('phone');
-    return new Set((data || []).map(c => c.phone));
+    const allPhones: string[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data } = await supabase
+        .from('contacts')
+        .select('phone')
+        .range(from, from + pageSize - 1);
+      
+      if (data && data.length > 0) {
+        allPhones.push(...data.map(c => c.phone));
+        from += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    return new Set(allPhones);
   };
 
   const fetchWhatsAppContacts = useCallback(async (instanceId: string): Promise<WhatsAppContact[]> => {
