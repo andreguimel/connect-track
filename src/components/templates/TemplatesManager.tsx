@@ -210,12 +210,12 @@ export function TemplatesManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Templates</h1>
-          <p className="mt-1 text-muted-foreground">Crie e gerencie templates de mensagens para reutilizar em campanhas</p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">Templates</h1>
+          <p className="mt-1 text-sm md:text-base text-muted-foreground">Crie e gerencie templates para reutilizar em campanhas</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -227,7 +227,7 @@ export function TemplatesManager() {
           }
         }}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Novo Template</Button>
+            <Button onClick={() => handleOpenDialog()} className="self-start"><Plus className="mr-2 h-4 w-4" />Novo Template</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -235,7 +235,7 @@ export function TemplatesManager() {
               <DialogDescription>{editingTemplate ? 'Edite os dados do template' : 'Crie um novo template de mensagem'}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="template-name">Nome do Template</Label>
                   <Input id="template-name" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="Ex: Promoção de Natal" />
@@ -372,10 +372,10 @@ export function TemplatesManager() {
       {/* Templates Grid */}
       {templates.length === 0 ? (
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="flex flex-col items-center justify-center py-16">
-            <FileText className="h-16 w-16 text-muted-foreground/30" />
-            <h3 className="mt-4 font-display text-lg font-semibold text-foreground">Nenhum template ainda</h3>
-            <p className="mt-2 text-center text-muted-foreground">Crie templates para agilizar a criação de campanhas</p>
+          <div className="flex flex-col items-center justify-center py-12 md:py-16">
+            <FileText className="h-12 w-12 md:h-16 md:w-16 text-muted-foreground/30" />
+            <h3 className="mt-4 font-display text-base md:text-lg font-semibold text-foreground">Nenhum template ainda</h3>
+            <p className="mt-2 text-center text-sm text-muted-foreground px-4">Crie templates para agilizar a criação de campanhas</p>
           </div>
         </div>
       ) : (

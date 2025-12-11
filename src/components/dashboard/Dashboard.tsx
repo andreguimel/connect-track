@@ -51,11 +51,11 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
+    <div className="space-y-6 md:space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="mt-1 text-muted-foreground">Visão geral das suas campanhas de WhatsApp</p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="mt-1 text-sm md:text-base text-muted-foreground">Visão geral das suas campanhas</p>
         </div>
         <ExportReports />
       </div>
@@ -132,28 +132,27 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
     : 0;
 
   return (
-    <div className="flex items-center justify-between rounded-lg border bg-background p-4 transition-all hover:border-primary/30">
-      <div className="flex-1">
-        <h3 className="font-medium text-foreground">{campaign.name}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {campaign.stats.total} contatos • Criada em {new Date(campaign.created_at).toLocaleDateString('pt-BR')}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-background p-3 md:p-4 transition-all hover:border-primary/30">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="font-medium text-foreground truncate">{campaign.name}</h3>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium shrink-0 ${statusColors[campaign.status]}`}>
+            {statusLabels[campaign.status]}
+          </span>
+        </div>
+        <p className="mt-1 text-xs md:text-sm text-muted-foreground">
+          {campaign.stats.total} contatos • {new Date(campaign.created_at).toLocaleDateString('pt-BR')}
         </p>
       </div>
       
-      <div className="flex items-center gap-4">
-        <div className="w-32">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Progresso</span>
-            <span className="font-medium text-foreground">{progress}%</span>
-          </div>
-          <div className="mt-1 h-2 overflow-hidden rounded-full bg-secondary">
-            <div className="h-full rounded-full bg-gradient-hero transition-all duration-500" style={{ width: `${progress}%` }} />
-          </div>
+      <div className="w-full sm:w-32">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Progresso</span>
+          <span className="font-medium text-foreground">{progress}%</span>
         </div>
-        
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[campaign.status]}`}>
-          {statusLabels[campaign.status]}
-        </span>
+        <div className="mt-1 h-2 overflow-hidden rounded-full bg-secondary">
+          <div className="h-full rounded-full bg-gradient-hero transition-all duration-500" style={{ width: `${progress}%` }} />
+        </div>
       </div>
     </div>
   );

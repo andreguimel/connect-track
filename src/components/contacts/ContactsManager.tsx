@@ -290,25 +290,26 @@ export function ContactsManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Contatos</h1>
-          <p className="mt-1 text-muted-foreground">Gerencie sua lista de contatos para envio</p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">Contatos</h1>
+          <p className="mt-1 text-sm md:text-base text-muted-foreground">Gerencie sua lista de contatos para envio</p>
         </div>
         
-        <div className="flex gap-3 flex-wrap">
-          <Button variant="outline" onClick={handleExportCSV} disabled={contacts.length === 0}>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={contacts.length === 0}>
             <Download className="mr-2 h-4 w-4" />
-            Exportar
+            <span className="hidden sm:inline">Exportar</span>
           </Button>
           
           <label htmlFor="csv-upload">
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="sm" asChild>
               <span className="cursor-pointer">
                 <Upload className="mr-2 h-4 w-4" />
-                Importar CSV
+                <span className="hidden sm:inline">Importar CSV</span>
+                <span className="sm:hidden">CSV</span>
               </span>
             </Button>
           </label>
@@ -321,7 +322,7 @@ export function ContactsManager() {
             if (!open) { setEditingGroup(null); setNewGroup({ name: '', color: 'bg-blue-500' }); }
           }}>
             <DialogTrigger asChild>
-              <Button variant="outline"><FolderPlus className="mr-2 h-4 w-4" />Categorias</Button>
+              <Button variant="outline" size="sm"><FolderPlus className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Categorias</span></Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -367,7 +368,7 @@ export function ContactsManager() {
           </Dialog>
           
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />Adicionar</Button></DialogTrigger>
+            <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Adicionar</span></Button></DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Adicionar Contato</DialogTitle>
@@ -436,67 +437,69 @@ export function ContactsManager() {
       </div>
 
       {/* Contacts Table */}
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         {contacts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Users className="h-16 w-16 text-muted-foreground/30" />
-            <h3 className="mt-4 font-display text-lg font-semibold text-foreground">Nenhum contato ainda</h3>
-            <p className="mt-2 text-center text-muted-foreground">Importe um arquivo CSV ou adicione contatos manualmente</p>
+          <div className="flex flex-col items-center justify-center py-12 md:py-16">
+            <Users className="h-12 w-12 md:h-16 md:w-16 text-muted-foreground/30" />
+            <h3 className="mt-4 font-display text-base md:text-lg font-semibold text-foreground">Nenhum contato ainda</h3>
+            <p className="mt-2 text-center text-sm text-muted-foreground px-4">Importe um arquivo CSV ou adicione contatos manualmente</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={paginatedContacts.length > 0 && selectedContacts.size === paginatedContacts.length}
-                    onCheckedChange={toggleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Data de Cadastro</TableHead>
-                <TableHead className="w-16"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedContacts.map((contact) => {
-                const group = getGroupById(contact.group_id);
-                return (
-                  <TableRow key={contact.id} className={selectedContacts.has(contact.id) ? 'bg-accent/50' : ''}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedContacts.has(contact.id)}
-                        onCheckedChange={() => toggleSelectContact(contact.id)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{contact.name}</TableCell>
-                    <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
-                    <TableCell className="text-muted-foreground">{contact.email || '-'}</TableCell>
-                    <TableCell>
-                      <Select value={contact.group_id || 'none'} onValueChange={(value) => handleChangeContactGroup(contact.id, value)}>
-                        <SelectTrigger className="w-36 h-8">
-                          <SelectValue>{group ? (<div className="flex items-center gap-2"><div className={`h-3 w-3 rounded-full ${group.color}`} /><span className="truncate">{group.name}</span></div>) : (<span className="text-muted-foreground">Sem categoria</span>)}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sem categoria</SelectItem>
-                          {groups.map((g) => (<SelectItem key={g.id} value={g.id}><div className="flex items-center gap-2"><div className={`h-3 w-3 rounded-full ${g.color}`} />{g.name}</div></SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{new Date(contact.created_at).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(contact.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={paginatedContacts.length > 0 && selectedContacts.size === paginatedContacts.length}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead className="min-w-[120px]">Nome</TableHead>
+                  <TableHead className="min-w-[120px]">Telefone</TableHead>
+                  <TableHead className="hidden md:table-cell">Email</TableHead>
+                  <TableHead className="hidden sm:table-cell min-w-[140px]">Categoria</TableHead>
+                  <TableHead className="hidden lg:table-cell">Data</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedContacts.map((contact) => {
+                  const group = getGroupById(contact.group_id);
+                  return (
+                    <TableRow key={contact.id} className={selectedContacts.has(contact.id) ? 'bg-accent/50' : ''}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedContacts.has(contact.id)}
+                          onCheckedChange={() => toggleSelectContact(contact.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium text-sm">{contact.name}</TableCell>
+                      <TableCell className="font-mono text-xs md:text-sm">{contact.phone}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm hidden md:table-cell">{contact.email || '-'}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Select value={contact.group_id || 'none'} onValueChange={(value) => handleChangeContactGroup(contact.id, value)}>
+                          <SelectTrigger className="w-28 md:w-36 h-8 text-xs md:text-sm">
+                            <SelectValue>{group ? (<div className="flex items-center gap-2"><div className={`h-2.5 w-2.5 md:h-3 md:w-3 rounded-full ${group.color}`} /><span className="truncate">{group.name}</span></div>) : (<span className="text-muted-foreground">Sem categoria</span>)}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem categoria</SelectItem>
+                            {groups.map((g) => (<SelectItem key={g.id} value={g.id}><div className="flex items-center gap-2"><div className={`h-3 w-3 rounded-full ${g.color}`} />{g.name}</div></SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm hidden lg:table-cell">{new Date(contact.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(contact.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
 
