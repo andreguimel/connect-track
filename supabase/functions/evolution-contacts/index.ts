@@ -90,12 +90,20 @@ serve(async (req) => {
           const chatsArray = Array.isArray(data) ? data : (data?.chats || data?.data || []);
           console.log('/chat/findChats returned:', chatsArray.length, 'items');
           
+          // Log ALL fields of first individual contact
+          const firstContact = chatsArray.find((c: { remoteJid?: string }) => 
+            c.remoteJid?.endsWith('@s.whatsapp.net')
+          );
+          if (firstContact) {
+            console.log('FULL CONTACT DATA:', JSON.stringify(firstContact));
+          }
+          
           for (const c of chatsArray) {
             const jid = c.remoteJid || c.id || '';
             if (jid.endsWith('@s.whatsapp.net')) {
               const phoneNumber = jid.replace('@s.whatsapp.net', '');
-              // Try multiple name fields
-              const name = c.pushName || c.name || c.notify || c.verifiedName || c.displayName || '';
+              // Try ALL possible name fields
+              const name = c.pushName || c.name || c.notify || c.verifiedName || c.displayName || c.shortName || c.formattedName || c.subject || '';
               contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
             }
           }
