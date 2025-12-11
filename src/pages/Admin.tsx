@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Navigate, Link, useNavigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAdmin, UserStats } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
-import { useImpersonation } from '@/hooks/useImpersonation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -11,29 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { Users, Smartphone, MessageSquare, BarChart3, Shield, Edit, ArrowLeft, Zap, Eye } from 'lucide-react';
+import { Users, Smartphone, MessageSquare, BarChart3, Shield, Edit, ArrowLeft, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function Admin() {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading, users, loadingUsers, updateSubscription, fetchUsers } = useAdmin();
-  const { startImpersonation } = useImpersonation();
-  const navigate = useNavigate();
   const [editingUser, setEditingUser] = useState<UserStats | null>(null);
   const [newStatus, setNewStatus] = useState<string>('');
   const [newPlan, setNewPlan] = useState<string>('');
   const [saving, setSaving] = useState(false);
-
-  const handleViewAsUser = (userStats: UserStats) => {
-    startImpersonation({
-      user_id: userStats.user_id,
-      email: userStats.email,
-      full_name: userStats.full_name
-    });
-    navigate('/');
-    toast.success(`Visualizando como ${userStats.full_name || userStats.email}`);
-  };
 
   if (authLoading || loading) {
     return (
@@ -230,26 +217,15 @@ export default function Admin() {
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleViewAsUser(userStats)}
-                              title="Ver como usuário"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleEdit(userStats)}
-                              title="Editar assinatura"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEdit(userStats)}
+                            title="Editar assinatura"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
