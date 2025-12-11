@@ -123,19 +123,22 @@ serve(async (req) => {
         console.log('Sample item:', JSON.stringify(rawData[0]).substring(0, 300));
       }
 
-      // Map contacts - filter out groups (ending with @g.us)
+      // Map contacts - ONLY accept @s.whatsapp.net contacts (real phone numbers)
       contacts = (rawData as Array<{ remoteJid?: string; id?: string; pushName?: string; name?: string; isGroup?: boolean; type?: string }>)
         .filter((contact) => {
           const jid = contact.remoteJid || contact.id || '';
-          // Keep only individual contacts, not groups
-          return jid.endsWith('@s.whatsapp.net') || 
-                 (jid.includes('@') && !jid.endsWith('@g.us') && !contact.isGroup && contact.type !== 'group');
+          // ONLY accept items ending with @s.whatsapp.net (real individual contacts)
+          // Reject: @g.us (groups), @lid (linked IDs), @broadcast (broadcast lists), @newsletter, etc.
+          return jid.endsWith('@s.whatsapp.net');
         })
         .map((contact) => {
           const jid = contact.remoteJid || contact.id || '';
+          const phoneNumber = jid.replace('@s.whatsapp.net', '');
+          // Get name from pushName (WhatsApp profile name) or name field
+          const name = contact.pushName || contact.name || '';
           return {
-            phoneNumber: jid.replace('@s.whatsapp.net', '').replace('@c.us', ''),
-            name: contact.pushName || contact.name || 'Sem nome',
+            phoneNumber,
+            name: name || `Contato ${phoneNumber}`,
           };
         });
       
