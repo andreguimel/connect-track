@@ -69,11 +69,30 @@ export function useContacts() {
 
   const fetchContacts = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('contacts')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setContacts(data || []);
+    
+    // Paginate to handle >1000 contacts
+    const allContacts: Contact[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data } = await supabase
+        .from('contacts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, from + pageSize - 1);
+      
+      if (data && data.length > 0) {
+        allContacts.push(...data);
+        from += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    setContacts(allContacts);
     setLoading(false);
   }, [user]);
 
@@ -404,36 +423,55 @@ export function useCampaigns() {
   };
 
   const getCampaignContacts = async (campaignId: string): Promise<CampaignContact[]> => {
-    // First get all campaign contacts
-    const { data } = await supabase
-      .from('campaign_contacts')
-      .select('*')
-      .eq('campaign_id', campaignId);
-    
-    if (!data) return [];
-    
-    // Get contact IDs for non-group recipients
-    const contactIds = data
-      .filter(cc => cc.recipient_type !== 'group')
-      .map(cc => cc.contact_id);
-    
-    // Fetch contacts separately if there are any
-    let contactsMap: Record<string, Contact> = {};
-    if (contactIds.length > 0) {
-      const { data: contacts } = await supabase
-        .from('contacts')
+    // Paginate to handle >1000 campaign contacts
+    const allCampaignContacts: CampaignContact[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data } = await supabase
+        .from('campaign_contacts')
         .select('*')
-        .in('id', contactIds);
+        .eq('campaign_id', campaignId)
+        .range(from, from + pageSize - 1);
       
-      if (contacts) {
-        contactsMap = contacts.reduce((acc, contact) => {
-          acc[contact.id] = contact;
-          return acc;
-        }, {} as Record<string, Contact>);
+      if (data && data.length > 0) {
+        allCampaignContacts.push(...(data as CampaignContact[]));
+        from += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
       }
     }
     
-    return data.map(cc => ({
+    if (allCampaignContacts.length === 0) return [];
+    
+    // Get contact IDs for non-group recipients
+    const contactIds = allCampaignContacts
+      .filter(cc => cc.recipient_type !== 'group')
+      .map(cc => cc.contact_id);
+    
+    // Fetch contacts in batches (Supabase .in() also has limits)
+    let contactsMap: Record<string, Contact> = {};
+    if (contactIds.length > 0) {
+      const batchSize = 500;
+      for (let i = 0; i < contactIds.length; i += batchSize) {
+        const batch = contactIds.slice(i, i + batchSize);
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('*')
+          .in('id', batch);
+        
+        if (contacts) {
+          contacts.forEach(contact => {
+            contactsMap[contact.id] = contact;
+          });
+        }
+      }
+    }
+    
+    return allCampaignContacts.map(cc => ({
       ...cc,
       status: cc.status as CampaignContact['status'],
       recipient_type: (cc.recipient_type || 'contact') as 'contact' | 'group',
