@@ -71,9 +71,44 @@ serve(async (req) => {
     if (action === 'fetchContacts') {
       console.log('Fetching contacts for instance:', instance.instance_name);
 
-      let rawData: unknown[] = [];
+      const contactsMap = new Map<string, { phoneNumber: string; name: string }>();
       
-      // Method 1: Try /chat/findChats endpoint (returns ALL chats including individual contacts)
+      // Method 1: Try /contact/find endpoint (saved contacts with phone numbers)
+      try {
+        console.log('Trying /contact/find endpoint...');
+        const contactResponse = await fetch(`${apiUrl}/contact/find/${instance.instance_name}`, {
+          method: 'POST',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ where: {} }),
+        });
+
+        if (contactResponse.ok) {
+          const data = await contactResponse.json();
+          const contactsArray = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
+          console.log('/contact/find returned:', contactsArray.length, 'items');
+          
+          for (const c of contactsArray) {
+            const jid = c.remoteJid || c.id || c.jid || '';
+            if (jid.endsWith('@s.whatsapp.net')) {
+              const phoneNumber = jid.replace('@s.whatsapp.net', '');
+              const name = c.pushName || c.name || c.displayName || '';
+              if (!contactsMap.has(phoneNumber)) {
+                contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
+              }
+            }
+          }
+          console.log('After /contact/find, map has:', contactsMap.size, 'contacts');
+        } else {
+          console.log('/contact/find failed with status:', contactResponse.status);
+        }
+      } catch (e) {
+        console.log('/contact/find error:', e);
+      }
+
+      // Method 2: Try /chat/findChats endpoint (all chats)
       try {
         console.log('Trying /chat/findChats endpoint...');
         const chatsResponse = await fetch(`${apiUrl}/chat/findChats/${instance.instance_name}`, {
@@ -87,76 +122,60 @@ serve(async (req) => {
 
         if (chatsResponse.ok) {
           const data = await chatsResponse.json();
-          rawData = Array.isArray(data) ? data : (data?.chats || data?.data || []);
-          console.log('findChats endpoint returned:', rawData.length, 'items');
-          if (rawData.length > 0) {
-            console.log('findChats sample:', JSON.stringify(rawData[0]).substring(0, 400));
+          const chatsArray = Array.isArray(data) ? data : (data?.chats || data?.data || []);
+          console.log('/chat/findChats returned:', chatsArray.length, 'items');
+          
+          for (const c of chatsArray) {
+            const jid = c.remoteJid || c.id || '';
+            if (jid.endsWith('@s.whatsapp.net')) {
+              const phoneNumber = jid.replace('@s.whatsapp.net', '');
+              const name = c.pushName || c.name || '';
+              if (!contactsMap.has(phoneNumber)) {
+                contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
+              }
+            }
           }
-        } else {
-          console.log('findChats failed with status:', chatsResponse.status);
+          console.log('After /chat/findChats, map has:', contactsMap.size, 'contacts');
         }
       } catch (e) {
-        console.log('findChats endpoint error:', e);
+        console.log('/chat/findChats error:', e);
       }
 
-      // Method 2: Fallback to /chat/findContacts
-      if (rawData.length === 0) {
-        try {
-          console.log('Trying /chat/findContacts endpoint...');
-          const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
-            method: 'POST',
-            headers: {
-              'apikey': evolutionApiKey,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({}),
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            rawData = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
-            console.log('findContacts endpoint returned:', rawData.length, 'items');
-          }
-        } catch (e) {
-          console.log('findContacts endpoint error:', e);
-        }
-      }
-
-      // Log sample for debugging
-      if (rawData.length > 0) {
-        console.log('Sample item:', JSON.stringify(rawData[0]).substring(0, 400));
-      }
-
-      // Count total before filter for debugging
-      const totalBeforeFilter = rawData.length;
-      let groupsCount = 0;
-      let contactsCount = 0;
-
-      // Map contacts - ONLY accept @s.whatsapp.net contacts (real phone numbers)
-      contacts = (rawData as Array<{ remoteJid?: string; id?: string; pushName?: string; name?: string; isGroup?: boolean; type?: string }>)
-        .filter((contact) => {
-          const jid = contact.remoteJid || contact.id || '';
-          if (jid.endsWith('@g.us')) {
-            groupsCount++;
-            return false;
-          }
-          if (jid.endsWith('@s.whatsapp.net')) {
-            contactsCount++;
-            return true;
-          }
-          return false;
-        })
-        .map((contact) => {
-          const jid = contact.remoteJid || contact.id || '';
-          const phoneNumber = jid.replace('@s.whatsapp.net', '');
-          const name = contact.pushName || contact.name || '';
-          return {
-            phoneNumber,
-            name: name || `Contato ${phoneNumber}`,
-          };
+      // Method 3: Try /chat/findContacts as final fallback
+      try {
+        console.log('Trying /chat/findContacts endpoint...');
+        const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
+          method: 'POST',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
         });
-      
-      console.log(`Total: ${totalBeforeFilter}, Groups: ${groupsCount}, Contacts: ${contactsCount}`);
+
+        if (response.ok) {
+          const data = await response.json();
+          const contactsArray = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
+          console.log('/chat/findContacts returned:', contactsArray.length, 'items');
+          
+          for (const c of contactsArray) {
+            const jid = c.remoteJid || c.id || '';
+            if (jid.endsWith('@s.whatsapp.net')) {
+              const phoneNumber = jid.replace('@s.whatsapp.net', '');
+              const name = c.pushName || c.name || '';
+              if (!contactsMap.has(phoneNumber)) {
+                contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
+              }
+            }
+          }
+          console.log('After /chat/findContacts, map has:', contactsMap.size, 'contacts');
+        }
+      } catch (e) {
+        console.log('/chat/findContacts error:', e);
+      }
+
+      contacts = Array.from(contactsMap.values());
+      console.log('Final contacts count:', contacts.length);
 
     } else if (action === 'fetchGroupParticipants') {
       if (!groupJid) {
