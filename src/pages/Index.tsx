@@ -11,6 +11,7 @@ import { SubscriptionBanner } from '@/components/subscription/SubscriptionBanner
 import { PaywallOverlay } from '@/components/subscription/PaywallOverlay';
 import { useCampaigns, Campaign } from '@/hooks/useData';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -22,19 +23,18 @@ import {
   getRemainingDaily
 } from '@/lib/antiban';
 
-const WEBHOOK_STORAGE_KEY = 'zapsender_webhook_url';
-
 const Index = () => {
   const { toast } = useToast();
   const { updateCampaign, getCampaignContacts, updateCampaignContactStatus, fetchCampaigns } = useCampaigns();
   const { refetch: refetchSubscription } = useSubscription();
+  const { getSetting, updateSetting, isLoading: isLoadingSettings } = useAppSettings();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [webhookUrl, setWebhookUrl] = useState(() => {
-    return localStorage.getItem(WEBHOOK_STORAGE_KEY) || '';
-  });
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSending, setIsSending] = useState(false);
+
+  // Get webhook URL from database
+  const webhookUrl = getSetting('webhook_url', '');
 
   // Handle payment callback
   useEffect(() => {
@@ -59,9 +59,15 @@ const Index = () => {
     }
   }, [searchParams, toast, refetchSubscription]);
 
-  const handleWebhookChange = (url: string) => {
-    setWebhookUrl(url);
-    localStorage.setItem(WEBHOOK_STORAGE_KEY, url);
+  const handleWebhookChange = async (url: string) => {
+    const result = await updateSetting('webhook_url', url);
+    if (!result.success) {
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar a URL do webhook",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleStartCampaign = useCallback(async (campaign: Campaign, contactFilter?: 'all' | 'failed') => {
@@ -207,7 +213,7 @@ const Index = () => {
       title: "Campanha finalizada",
       description: `Restam ${getRemainingDaily(antiBanSettings)} envios hoje`,
     });
-  }, [webhookUrl, toast, updateCampaign, getCampaignContacts, updateCampaignContactStatus, fetchCampaigns]);
+  }, [webhookUrl, toast, updateCampaign, getCampaignContacts, updateCampaignContactStatus, fetchCampaigns, getSetting]);
 
   const handleCampaignCreated = () => {
     setRefreshKey(k => k + 1);

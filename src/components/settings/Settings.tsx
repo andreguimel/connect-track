@@ -20,7 +20,7 @@ import { useAdmin } from '@/hooks/useAdmin';
 
 interface SettingsProps {
   webhookUrl: string;
-  onWebhookChange: (url: string) => void;
+  onWebhookChange: (url: string) => Promise<void> | void;
 }
 
 export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
@@ -49,11 +49,11 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
     }
   }, [instances, selectedInstanceId]);
 
-  const handleSaveWebhook = () => {
-    onWebhookChange(localWebhookUrl);
+  const handleSaveWebhook = async () => {
+    await onWebhookChange(localWebhookUrl);
     toast({
       title: "Webhook salvo",
-      description: "URL do webhook atualizada com sucesso",
+      description: "URL do webhook salva no banco de dados",
     });
   };
 
