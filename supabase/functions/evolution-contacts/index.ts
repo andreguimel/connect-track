@@ -148,62 +148,115 @@ serve(async (req) => {
 
       console.log('Fetching participants for group:', groupJid);
 
-      // Fetch contacts first to get names
-      const contactsResponse = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
-        method: 'POST',
-        headers: {
-          'apikey': evolutionApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-
-      // Build a map of phone -> name from contacts
+      // Build a map of phone -> name from contacts first
       const contactsMap = new Map<string, string>();
-      if (contactsResponse.ok) {
-        const contactsData = await contactsResponse.json();
-        const contactsArray = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || contactsData?.data || []);
-        for (const c of contactsArray) {
-          if (c.remoteJid && c.remoteJid.endsWith('@s.whatsapp.net')) {
-            const phone = c.remoteJid.replace('@s.whatsapp.net', '');
-            const name = c.pushName || c.name || '';
-            if (name) {
-              contactsMap.set(phone, name);
+      try {
+        const contactsResponse = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
+          method: 'POST',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+
+        if (contactsResponse.ok) {
+          const contactsData = await contactsResponse.json();
+          const contactsArray = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || contactsData?.data || []);
+          for (const c of contactsArray) {
+            if (c.remoteJid && c.remoteJid.endsWith('@s.whatsapp.net')) {
+              const phone = c.remoteJid.replace('@s.whatsapp.net', '');
+              const name = c.pushName || c.name || '';
+              if (name) {
+                contactsMap.set(phone, name);
+              }
             }
           }
+          console.log('Built contacts map with', contactsMap.size, 'entries');
         }
-        console.log('Built contacts map with', contactsMap.size, 'entries');
+      } catch (e) {
+        console.log('Failed to build contacts map:', e);
       }
 
-      // Fetch group participants from Evolution API
-      const response = await fetch(`${apiUrl}/group/participants/${instance.instance_name}?groupJid=${encodeURIComponent(groupJid)}`, {
-        method: 'GET',
-        headers: {
-          'apikey': evolutionApiKey,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Evolution API error:', errorText);
-        throw new Error(`Failed to fetch group participants: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Raw participants response:', JSON.stringify(data).substring(0, 1000));
-      
-      // Handle different response formats from Evolution API
+      // Try Method 1: fetchAllGroups with getParticipants (returns phone numbers in some versions)
       let participants: unknown[] = [];
-      if (Array.isArray(data)) {
-        participants = data;
-      } else if (data?.participants && Array.isArray(data.participants)) {
-        participants = data.participants;
-      } else if (data?.data && Array.isArray(data.data)) {
-        participants = data.data;
-      }
       
-      console.log('Participants array length:', participants.length);
+      try {
+        const groupsResponse = await fetch(`${apiUrl}/group/fetchAllGroups/${instance.instance_name}?getParticipants=true`, {
+          method: 'GET',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (groupsResponse.ok) {
+          const groupsData = await groupsResponse.json();
+          const groups = Array.isArray(groupsData) ? groupsData : (groupsData?.groups || groupsData?.data || []);
+          
+          // Find the specific group
+          const targetGroup = groups.find((g: { id?: string; jid?: string }) => 
+            g.id === groupJid || g.jid === groupJid
+          );
+          
+          if (targetGroup?.participants) {
+            participants = targetGroup.participants;
+            console.log('Got participants from fetchAllGroups:', participants.length);
+          }
+        }
+      } catch (e) {
+        console.log('fetchAllGroups failed:', e);
+      }
+
+      // Method 2: Standard participants endpoint
+      if (participants.length === 0) {
+        const response = await fetch(`${apiUrl}/group/participants/${instance.instance_name}?groupJid=${encodeURIComponent(groupJid)}`, {
+          method: 'GET',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Raw participants response sample:', JSON.stringify(data).substring(0, 500));
+          
+          if (Array.isArray(data)) {
+            participants = data;
+          } else if (data?.participants && Array.isArray(data.participants)) {
+            participants = data.participants;
+          } else if (data?.data && Array.isArray(data.data)) {
+            participants = data.data;
+          }
+          console.log('Got participants from standard endpoint:', participants.length);
+        }
+      }
+
+      // Method 3: Try group/findGroupInfos endpoint
+      if (participants.length === 0) {
+        try {
+          const infoResponse = await fetch(`${apiUrl}/group/findGroupInfos/${instance.instance_name}?groupJid=${encodeURIComponent(groupJid)}`, {
+            method: 'GET',
+            headers: {
+              'apikey': evolutionApiKey,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (infoResponse.ok) {
+            const infoData = await infoResponse.json();
+            if (infoData?.participants) {
+              participants = infoData.participants;
+              console.log('Got participants from findGroupInfos:', participants.length);
+            }
+          }
+        } catch (e) {
+          console.log('findGroupInfos failed:', e);
+        }
+      }
+
+      console.log('Total participants to process:', participants.length);
       if (participants.length > 0) {
         console.log('First participant sample:', JSON.stringify(participants[0]));
       }
@@ -213,6 +266,7 @@ serve(async (req) => {
       for (const p of participants) {
         // Handle string format (just the jid)
         if (typeof p === 'string') {
+          // Check for phone number format (with @s.whatsapp.net or just digits)
           if (p.endsWith('@s.whatsapp.net')) {
             const phoneNumber = p.replace('@s.whatsapp.net', '');
             mappedContacts.push({
@@ -220,20 +274,50 @@ serve(async (req) => {
               name: contactsMap.get(phoneNumber) || '',
               isAdmin: false,
             });
+          } else if (/^\d+$/.test(p)) {
+            // Just digits - treat as phone number
+            mappedContacts.push({
+              phoneNumber: p,
+              name: contactsMap.get(p) || '',
+              isAdmin: false,
+            });
           }
           continue;
         }
         
-        // Handle object format - Evolution API returns phoneNumber field with @s.whatsapp.net
-        const participant = p as { id?: string; jid?: string; phoneNumber?: string; admin?: string | null; name?: string };
+        // Handle object format
+        const participant = p as { 
+          id?: string; 
+          jid?: string; 
+          phoneNumber?: string; 
+          number?: string;
+          admin?: string | null; 
+          name?: string;
+          pushName?: string;
+        };
         
-        // Try phoneNumber first (new Evolution API format), then jid, then id
-        const whatsappId = participant.phoneNumber || participant.jid || participant.id || '';
+        // Try multiple fields that might contain the phone number
+        let phoneNumber = '';
+        const whatsappId = participant.phoneNumber || participant.number || participant.jid || participant.id || '';
         
         if (whatsappId.endsWith('@s.whatsapp.net')) {
-          const phoneNumber = whatsappId.replace('@s.whatsapp.net', '');
-          // Use name from participant if available, otherwise from contacts map
-          const name = participant.name || contactsMap.get(phoneNumber) || '';
+          phoneNumber = whatsappId.replace('@s.whatsapp.net', '');
+        } else if (whatsappId.endsWith('@c.us')) {
+          phoneNumber = whatsappId.replace('@c.us', '');
+        } else if (/^\d+$/.test(whatsappId)) {
+          // Just digits
+          phoneNumber = whatsappId;
+        } else if (whatsappId.includes('@') && !whatsappId.endsWith('@lid') && !whatsappId.endsWith('@g.us')) {
+          // Some other format - extract number before @
+          phoneNumber = whatsappId.split('@')[0];
+          if (!/^\d+$/.test(phoneNumber)) {
+            phoneNumber = ''; // Not a valid phone number
+          }
+        }
+        
+        // Skip @lid entries (linked IDs without real phone numbers)
+        if (phoneNumber && phoneNumber.length > 5) {
+          const name = participant.name || participant.pushName || contactsMap.get(phoneNumber) || '';
           mappedContacts.push({
             phoneNumber,
             name,
@@ -243,7 +327,7 @@ serve(async (req) => {
       }
       
       contacts = mappedContacts;
-      console.log('Mapped participants count:', contacts.length);
+      console.log('Mapped participants with phone numbers:', contacts.length);
 
     } else {
       throw new Error('Invalid action. Use "fetchContacts" or "fetchGroupParticipants"');
