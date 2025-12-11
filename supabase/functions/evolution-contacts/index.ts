@@ -73,7 +73,7 @@ serve(async (req) => {
 
       const contactsMap = new Map<string, { phoneNumber: string; name: string }>();
       
-      // Method 1: /chat/findChats - gets ALL chats (contacts + groups)
+      // Method 1: /chat/findChats - gets ALL chats with lastMessage containing pushName
       try {
         console.log('Trying /chat/findChats endpoint...');
         const chatsResponse = await fetch(`${apiUrl}/chat/findChats/${instance.instance_name}`, {
@@ -90,20 +90,13 @@ serve(async (req) => {
           const chatsArray = Array.isArray(data) ? data : (data?.chats || data?.data || []);
           console.log('/chat/findChats returned:', chatsArray.length, 'items');
           
-          // Log ALL fields of first individual contact
-          const firstContact = chatsArray.find((c: { remoteJid?: string }) => 
-            c.remoteJid?.endsWith('@s.whatsapp.net')
-          );
-          if (firstContact) {
-            console.log('FULL CONTACT DATA:', JSON.stringify(firstContact));
-          }
-          
           for (const c of chatsArray) {
             const jid = c.remoteJid || c.id || '';
             if (jid.endsWith('@s.whatsapp.net')) {
               const phoneNumber = jid.replace('@s.whatsapp.net', '');
-              // Try ALL possible name fields
-              const name = c.pushName || c.name || c.notify || c.verifiedName || c.displayName || c.shortName || c.formattedName || c.subject || '';
+              // IMPORTANT: Extract name from lastMessage.pushName as primary source
+              const nameFromLastMessage = c.lastMessage?.pushName || '';
+              const name = nameFromLastMessage || c.pushName || c.name || c.notify || c.verifiedName || c.displayName || '';
               contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
             }
           }
@@ -113,7 +106,7 @@ serve(async (req) => {
         console.log('/chat/findChats error:', e);
       }
 
-      // Method 2: /chat/findContacts - may have additional name info
+      // Method 2: /chat/findContacts - may have additional contacts
       try {
         console.log('Trying /chat/findContacts endpoint...');
         const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
@@ -136,9 +129,12 @@ serve(async (req) => {
               const phoneNumber = jid.replace('@s.whatsapp.net', '');
               const name = c.pushName || c.name || c.notify || c.verifiedName || c.displayName || '';
               
-              // Only update if we have a real name
+              // Update if we have a real name and existing doesn't
               if (name && name.trim()) {
-                contactsMap.set(phoneNumber, { phoneNumber, name });
+                const existing = contactsMap.get(phoneNumber);
+                if (!existing || existing.name.startsWith('Contato ')) {
+                  contactsMap.set(phoneNumber, { phoneNumber, name });
+                }
               } else if (!contactsMap.has(phoneNumber)) {
                 contactsMap.set(phoneNumber, { phoneNumber, name: `Contato ${phoneNumber}` });
               }
@@ -149,43 +145,79 @@ serve(async (req) => {
         console.log('/chat/findContacts error:', e);
       }
 
-      // Method 3: /chat/findMessages to extract names from message history
+      // Method 3: /contact/fetchAll - alternative endpoint in some versions
       try {
-        console.log('Trying /chat/findMessages for name extraction...');
-        const messagesResponse = await fetch(`${apiUrl}/chat/findMessages/${instance.instance_name}`, {
+        console.log('Trying /contact/fetchAll endpoint...');
+        const fetchAllResponse = await fetch(`${apiUrl}/contact/fetchAll/${instance.instance_name}`, {
+          method: 'GET',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (fetchAllResponse.ok) {
+          const data = await fetchAllResponse.json();
+          const contactsArray = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
+          console.log('/contact/fetchAll returned:', contactsArray.length, 'items');
+          
+          for (const c of contactsArray) {
+            const jid = c.remoteJid || c.id || c.wuid || '';
+            const phoneNumber = jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+            if (phoneNumber && /^\d+$/.test(phoneNumber)) {
+              const name = c.pushName || c.name || c.notify || c.verifiedName || '';
+              if (name && name.trim()) {
+                const existing = contactsMap.get(phoneNumber);
+                if (!existing || existing.name.startsWith('Contato ')) {
+                  contactsMap.set(phoneNumber, { phoneNumber, name });
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.log('/contact/fetchAll error:', e);
+      }
+
+      // Method 4: /message/findMessages - extract names from message history
+      try {
+        console.log('Trying /message/findMessages endpoint...');
+        const messagesResponse = await fetch(`${apiUrl}/message/findMessages/${instance.instance_name}`, {
           method: 'POST',
           headers: {
             'apikey': evolutionApiKey,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ where: {}, limit: 1000 }),
+          body: JSON.stringify({ where: {}, page: 1, offset: 500 }),
         });
 
         if (messagesResponse.ok) {
           const data = await messagesResponse.json();
-          const messages = Array.isArray(data) ? data : (data?.messages || data?.data || []);
-          console.log('/chat/findMessages returned:', messages.length, 'messages');
+          const messages = data?.messages?.records || (Array.isArray(data) ? data : (data?.messages || data?.data || []));
+          console.log('/message/findMessages returned:', Array.isArray(messages) ? messages.length : 'N/A', 'messages');
           
-          let namesFromMessages = 0;
-          for (const msg of messages) {
-            const jid = msg.key?.remoteJid || msg.remoteJid || '';
-            if (jid.endsWith('@s.whatsapp.net')) {
-              const phoneNumber = jid.replace('@s.whatsapp.net', '');
-              const name = msg.pushName || '';
-              
-              if (name && name.trim()) {
-                const existing = contactsMap.get(phoneNumber);
-                if (!existing || existing.name.startsWith('Contato ')) {
-                  contactsMap.set(phoneNumber, { phoneNumber, name });
-                  namesFromMessages++;
+          if (Array.isArray(messages)) {
+            let namesFromMessages = 0;
+            for (const msg of messages) {
+              const jid = msg.key?.remoteJid || msg.remoteJid || '';
+              if (jid.endsWith('@s.whatsapp.net')) {
+                const phoneNumber = jid.replace('@s.whatsapp.net', '');
+                const name = msg.pushName || '';
+                
+                if (name && name.trim()) {
+                  const existing = contactsMap.get(phoneNumber);
+                  if (!existing || existing.name.startsWith('Contato ')) {
+                    contactsMap.set(phoneNumber, { phoneNumber, name });
+                    namesFromMessages++;
+                  }
                 }
               }
             }
+            console.log('Names extracted from messages:', namesFromMessages);
           }
-          console.log('Names extracted from messages:', namesFromMessages);
         }
       } catch (e) {
-        console.log('/chat/findMessages error:', e);
+        console.log('/message/findMessages error:', e);
       }
 
       contacts = Array.from(contactsMap.values());
@@ -193,9 +225,6 @@ serve(async (req) => {
       // Count contacts with real names vs placeholder
       const withNames = contacts.filter(c => !c.name.startsWith('Contato ')).length;
       console.log(`Final: ${contacts.length} contacts, ${withNames} with real names`);
-
-      contacts = Array.from(contactsMap.values());
-      console.log('Final contacts count:', contacts.length);
 
     } else if (action === 'fetchGroupParticipants') {
       if (!groupJid) {
