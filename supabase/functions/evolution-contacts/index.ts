@@ -71,14 +71,18 @@ serve(async (req) => {
     if (action === 'fetchContacts') {
       console.log('Fetching contacts for instance:', instance.instance_name);
 
-      // Fetch all contacts from Evolution API
+      // Fetch all contacts from Evolution API with filter for non-groups
       const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
         method: 'POST',
         headers: {
           'apikey': evolutionApiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          where: {
+            isGroup: false
+          }
+        }),
       });
 
       if (!response.ok) {
@@ -89,22 +93,28 @@ serve(async (req) => {
 
       const rawData = await response.json();
       console.log('Raw Evolution API response type:', typeof rawData, Array.isArray(rawData));
-      console.log('Raw data sample:', JSON.stringify(rawData?.slice?.(0, 2) || rawData).substring(0, 500));
+      console.log('Fetched items count:', Array.isArray(rawData) ? rawData.length : 'not array');
       
       // Handle different response formats from Evolution API
       const contactsArray = Array.isArray(rawData) ? rawData : (rawData?.contacts || rawData?.data || []);
-      console.log('Fetched contacts count:', contactsArray.length);
+      
+      // Log sample of first few items to debug format
+      if (contactsArray.length > 0) {
+        console.log('Sample contact:', JSON.stringify(contactsArray[0]).substring(0, 300));
+      }
 
       // Map contacts to our format - Evolution API uses remoteJid for WhatsApp IDs
+      // Accept both @s.whatsapp.net format and also check type/isGroup fields
       contacts = contactsArray
-        .filter((contact: { remoteJid?: string; isGroup?: boolean }) => {
+        .filter((contact: { remoteJid?: string; isGroup?: boolean; type?: string }) => {
           // Filter only individual contacts (not groups)
-          return contact.remoteJid && 
-                 contact.remoteJid.endsWith('@s.whatsapp.net') && 
-                 !contact.isGroup;
+          const isIndividual = contact.remoteJid && 
+                 (contact.remoteJid.endsWith('@s.whatsapp.net') || 
+                  (!contact.remoteJid.endsWith('@g.us') && !contact.isGroup && contact.type !== 'group'));
+          return isIndividual;
         })
         .map((contact: { remoteJid: string; pushName?: string; name?: string }) => ({
-          phoneNumber: contact.remoteJid.replace('@s.whatsapp.net', ''),
+          phoneNumber: contact.remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', ''),
           name: contact.pushName || contact.name || 'Sem nome',
         }));
       
