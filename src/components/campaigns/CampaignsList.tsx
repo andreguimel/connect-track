@@ -151,11 +151,11 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="font-display text-3xl font-bold text-foreground">Campanhas</h1>
-        <p className="mt-1 text-muted-foreground">
+        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">Campanhas</h1>
+        <p className="mt-1 text-sm md:text-base text-muted-foreground">
           Gerencie suas campanhas de envio em massa
         </p>
       </div>
@@ -163,12 +163,12 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
       {/* Campaigns List */}
       <div className="rounded-xl border bg-card shadow-sm">
         {campaigns.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <MessageSquare className="h-16 w-16 text-muted-foreground/30" />
-            <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
+          <div className="flex flex-col items-center justify-center py-12 md:py-16">
+            <MessageSquare className="h-12 w-12 md:h-16 md:w-16 text-muted-foreground/30" />
+            <h3 className="mt-4 font-display text-base md:text-lg font-semibold text-foreground">
               Nenhuma campanha ainda
             </h3>
-            <p className="mt-2 text-center text-muted-foreground">
+            <p className="mt-2 text-center text-sm text-muted-foreground px-4">
               Crie uma nova campanha na aba "Enviar"
             </p>
           </div>
@@ -183,56 +183,58 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
                 : 0;
 
               return (
-                <div key={campaign.id} className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="font-display text-lg font-semibold text-foreground">
+                <div key={campaign.id} className="p-4 md:p-6">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-display text-base md:text-lg font-semibold text-foreground truncate">
                           {campaign.name}
                         </h3>
-                        <Badge variant={config.variant} className="gap-1">
+                        <Badge variant={config.variant} className="gap-1 shrink-0 text-xs">
                           <StatusIcon className="h-3 w-3" />
                           {config.label}
                         </Badge>
                         {MediaIcon && (
-                          <Badge variant="outline" className="gap-1">
+                          <Badge variant="outline" className="gap-1 shrink-0 text-xs">
                             <MediaIcon className="h-3 w-3" />
-                            {campaign.media_type === 'image' ? 'Imagem' : campaign.media_type === 'video' ? 'Vídeo' : 'Áudio'}
+                            <span className="hidden sm:inline">
+                              {campaign.media_type === 'image' ? 'Imagem' : campaign.media_type === 'video' ? 'Vídeo' : 'Áudio'}
+                            </span>
                           </Badge>
                         )}
                       </div>
                       
-                      <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                      <p className="mt-2 line-clamp-2 text-xs md:text-sm text-muted-foreground">
                         {campaign.message}
                       </p>
 
                       {campaign.scheduled_at && (
-                        <div className="mt-2 flex items-center gap-2 text-sm text-info">
-                          <Calendar className="h-4 w-4" />
-                          Agendada para: {format(new Date(campaign.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        <div className="mt-2 flex items-center gap-2 text-xs md:text-sm text-info">
+                          <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                          Agendada: {format(new Date(campaign.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                         </div>
                       )}
 
-                      <div className="mt-4 flex flex-wrap gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Send className="h-4 w-4 text-muted-foreground" />
+                      <div className="mt-3 md:mt-4 flex flex-wrap gap-3 md:gap-4 text-xs md:text-sm">
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          <Send className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
                           <span className="text-foreground">{campaign.stats.total}</span>
-                          <span className="text-muted-foreground">contatos</span>
+                          <span className="text-muted-foreground hidden sm:inline">contatos</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-success" />
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          <CheckCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-success" />
                           <span className="text-foreground">{campaign.stats.delivered}</span>
-                          <span className="text-muted-foreground">entregues</span>
+                          <span className="text-muted-foreground hidden sm:inline">entregues</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <XCircle className="h-4 w-4 text-destructive" />
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          <XCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-destructive" />
                           <span className="text-foreground">{campaign.stats.failed}</span>
-                          <span className="text-muted-foreground">falhas</span>
+                          <span className="text-muted-foreground hidden sm:inline">falhas</span>
                         </div>
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="mt-4 max-w-md">
+                      <div className="mt-3 md:mt-4 max-w-md">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">Progresso</span>
                           <span className="font-medium text-foreground">{progress}%</span>
@@ -247,7 +249,7 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       <Button
                         variant="outline"
                         size="icon"

@@ -169,11 +169,11 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
   const remaining = getRemainingDaily(antiBanSettings);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="font-display text-3xl font-bold text-foreground">Configurações</h1>
-        <p className="mt-1 text-muted-foreground">
+        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">Configurações</h1>
+        <p className="mt-1 text-sm md:text-base text-muted-foreground">
           Configure as integrações e proteções anti-ban
         </p>
       </div>

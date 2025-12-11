@@ -485,25 +485,25 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const filteredSelectedCount = filteredContacts.filter(c => selectedContactIds.has(c.id)).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="font-display text-3xl font-bold text-foreground">Enviar Mensagem</h1>
-        <p className="mt-1 text-muted-foreground">
+        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">Enviar Mensagem</h1>
+        <p className="mt-1 text-sm md:text-base text-muted-foreground">
           Crie e envie campanhas de WhatsApp em massa
         </p>
       </div>
 
       {/* Progress Bar during sending */}
       {isSending && sendingProgress.total > 0 && (
-        <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
+        <div className="rounded-xl border bg-card p-4 md:p-6 shadow-sm animate-fade-in">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span className="font-medium">Enviando mensagens...</span>
+                <span className="font-medium text-sm md:text-base">Enviando mensagens...</span>
               </div>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-xs md:text-sm text-muted-foreground">
                 {sendingProgress.current} de {sendingProgress.total}
               </span>
             </div>
@@ -518,12 +518,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
         {/* Left: Form */}
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Instance Selection */}
           {instances.length > 0 && (
-            <div className="rounded-xl border bg-card p-6 shadow-sm">
+            <div className="rounded-xl border bg-card p-4 md:p-6 shadow-sm">
               <div className="space-y-2">
                 <Label htmlFor="instance-select" className="flex items-center gap-2">
                   <Wifi className="h-4 w-4" />
@@ -556,7 +556,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           )}
 
           {/* Campaign Name */}
-          <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <div className="rounded-xl border bg-card p-4 md:p-6 shadow-sm">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="campaign-name">Nome da Campanha</Label>
