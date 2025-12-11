@@ -105,7 +105,7 @@ serve(async (req) => {
         console.log('/chat/findChats error:', e);
       }
 
-      // Method 2: /chat/findContacts - has NAMES but fewer contacts - use this to UPDATE names
+      // Method 2: /chat/findContacts - check what data it has
       try {
         console.log('Trying /chat/findContacts endpoint...');
         const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
@@ -122,6 +122,16 @@ serve(async (req) => {
           const contactsArray = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
           console.log('/chat/findContacts returned:', contactsArray.length, 'items');
           
+          // Log sample of individual contacts (not groups)
+          const individualContacts = contactsArray.filter((c: { remoteJid?: string; id?: string }) => {
+            const jid = c.remoteJid || c.id || '';
+            return jid.endsWith('@s.whatsapp.net');
+          });
+          console.log('Individual contacts in findContacts:', individualContacts.length);
+          if (individualContacts.length > 0) {
+            console.log('Sample individual contact:', JSON.stringify(individualContacts[0]).substring(0, 400));
+          }
+          
           let namesUpdated = 0;
           for (const c of contactsArray) {
             const jid = c.remoteJid || c.id || '';
@@ -130,11 +140,9 @@ serve(async (req) => {
               const name = c.pushName || c.name || '';
               
               if (name) {
-                // Update or add with the real name
                 contactsMap.set(phoneNumber, { phoneNumber, name });
                 namesUpdated++;
               } else if (!contactsMap.has(phoneNumber)) {
-                // Add new contact without name
                 contactsMap.set(phoneNumber, { phoneNumber, name: `Contato ${phoneNumber}` });
               }
             }
@@ -144,6 +152,13 @@ serve(async (req) => {
         }
       } catch (e) {
         console.log('/chat/findContacts error:', e);
+      }
+
+      // Also log a sample of findChats with names
+      const contactsWithNames = Array.from(contactsMap.values()).filter(c => !c.name.startsWith('Contato '));
+      console.log('Contacts WITH real names:', contactsWithNames.length);
+      if (contactsWithNames.length > 0) {
+        console.log('Sample with name:', JSON.stringify(contactsWithNames[0]));
       }
 
       contacts = Array.from(contactsMap.values());
