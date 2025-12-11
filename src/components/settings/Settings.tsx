@@ -23,13 +23,11 @@ interface SettingsProps {
   onWebhookChange: (url: string) => void;
 }
 
-const N8N_WEBHOOK_URL = 'https://oito.codigopro.tech/webhook/70343adc-43eb-4015-9571-d382c00bb03b';
-
 export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
   const { instances } = useEvolutionInstances();
-  const [localWebhookUrl, setLocalWebhookUrl] = useState(webhookUrl || N8N_WEBHOOK_URL);
+  const [localWebhookUrl, setLocalWebhookUrl] = useState(webhookUrl);
   const [antiBanSettings, setAntiBanSettings] = useState<AntiBanSettings>(getAntiBanSettings);
   const [dailySent, setDailySent] = useState(getDailySentCount);
   const [testPhone, setTestPhone] = useState('');
@@ -38,11 +36,10 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
 
+  // Sync local state with prop
   useEffect(() => {
-    if (!webhookUrl) {
-      onWebhookChange(N8N_WEBHOOK_URL);
-    }
-  }, [webhookUrl, onWebhookChange]);
+    setLocalWebhookUrl(webhookUrl);
+  }, [webhookUrl]);
 
   // Set default instance when instances load
   useEffect(() => {
