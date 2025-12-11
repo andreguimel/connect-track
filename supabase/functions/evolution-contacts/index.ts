@@ -73,42 +73,7 @@ serve(async (req) => {
 
       const contactsMap = new Map<string, { phoneNumber: string; name: string }>();
       
-      // Method 1: Try /contact/find endpoint (saved contacts with phone numbers)
-      try {
-        console.log('Trying /contact/find endpoint...');
-        const contactResponse = await fetch(`${apiUrl}/contact/find/${instance.instance_name}`, {
-          method: 'POST',
-          headers: {
-            'apikey': evolutionApiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ where: {} }),
-        });
-
-        if (contactResponse.ok) {
-          const data = await contactResponse.json();
-          const contactsArray = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
-          console.log('/contact/find returned:', contactsArray.length, 'items');
-          
-          for (const c of contactsArray) {
-            const jid = c.remoteJid || c.id || c.jid || '';
-            if (jid.endsWith('@s.whatsapp.net')) {
-              const phoneNumber = jid.replace('@s.whatsapp.net', '');
-              const name = c.pushName || c.name || c.displayName || '';
-              if (!contactsMap.has(phoneNumber)) {
-                contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
-              }
-            }
-          }
-          console.log('After /contact/find, map has:', contactsMap.size, 'contacts');
-        } else {
-          console.log('/contact/find failed with status:', contactResponse.status);
-        }
-      } catch (e) {
-        console.log('/contact/find error:', e);
-      }
-
-      // Method 2: Try /chat/findChats endpoint (all chats)
+      // Method 1: /chat/findChats - gets more contacts but often without names
       try {
         console.log('Trying /chat/findChats endpoint...');
         const chatsResponse = await fetch(`${apiUrl}/chat/findChats/${instance.instance_name}`, {
@@ -130,9 +95,8 @@ serve(async (req) => {
             if (jid.endsWith('@s.whatsapp.net')) {
               const phoneNumber = jid.replace('@s.whatsapp.net', '');
               const name = c.pushName || c.name || '';
-              if (!contactsMap.has(phoneNumber)) {
-                contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
-              }
+              // Add to map (will be overwritten by findContacts if it has better name)
+              contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
             }
           }
           console.log('After /chat/findChats, map has:', contactsMap.size, 'contacts');
@@ -141,7 +105,7 @@ serve(async (req) => {
         console.log('/chat/findChats error:', e);
       }
 
-      // Method 3: Try /chat/findContacts as final fallback
+      // Method 2: /chat/findContacts - has NAMES but fewer contacts - use this to UPDATE names
       try {
         console.log('Trying /chat/findContacts endpoint...');
         const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
@@ -158,16 +122,24 @@ serve(async (req) => {
           const contactsArray = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
           console.log('/chat/findContacts returned:', contactsArray.length, 'items');
           
+          let namesUpdated = 0;
           for (const c of contactsArray) {
             const jid = c.remoteJid || c.id || '';
             if (jid.endsWith('@s.whatsapp.net')) {
               const phoneNumber = jid.replace('@s.whatsapp.net', '');
               const name = c.pushName || c.name || '';
-              if (!contactsMap.has(phoneNumber)) {
-                contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
+              
+              if (name) {
+                // Update or add with the real name
+                contactsMap.set(phoneNumber, { phoneNumber, name });
+                namesUpdated++;
+              } else if (!contactsMap.has(phoneNumber)) {
+                // Add new contact without name
+                contactsMap.set(phoneNumber, { phoneNumber, name: `Contato ${phoneNumber}` });
               }
             }
           }
+          console.log('Names updated from /chat/findContacts:', namesUpdated);
           console.log('After /chat/findContacts, map has:', contactsMap.size, 'contacts');
         }
       } catch (e) {
