@@ -23,7 +23,6 @@ import {
 } from '@/lib/antiban';
 
 const WEBHOOK_STORAGE_KEY = 'zapsender_webhook_url';
-const N8N_WEBHOOK_URL = 'https://oito.codigopro.tech/webhook/70343adc-43eb-4015-9571-d382c00bb03b';
 
 const Index = () => {
   const { toast } = useToast();
@@ -32,7 +31,7 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [webhookUrl, setWebhookUrl] = useState(() => {
-    return localStorage.getItem(WEBHOOK_STORAGE_KEY) || N8N_WEBHOOK_URL;
+    return localStorage.getItem(WEBHOOK_STORAGE_KEY) || '';
   });
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSending, setIsSending] = useState(false);
