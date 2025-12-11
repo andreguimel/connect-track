@@ -71,52 +71,73 @@ serve(async (req) => {
     if (action === 'fetchContacts') {
       console.log('Fetching contacts for instance:', instance.instance_name);
 
-      // Fetch all contacts from Evolution API with filter for non-groups
-      const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
-        method: 'POST',
-        headers: {
-          'apikey': evolutionApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          where: {
-            isGroup: false
-          }
-        }),
-      });
+      // Try the contact endpoint first (returns actual contacts, not chats)
+      let rawData: unknown[] = [];
+      
+      // Method 1: Try /contact/find endpoint
+      try {
+        const contactResponse = await fetch(`${apiUrl}/contact/find/${instance.instance_name}`, {
+          method: 'POST',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            where: {}
+          }),
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Evolution API error:', errorText);
-        throw new Error(`Failed to fetch contacts: ${response.status}`);
+        if (contactResponse.ok) {
+          const data = await contactResponse.json();
+          rawData = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
+          console.log('Contact endpoint returned:', rawData.length, 'items');
+        }
+      } catch (e) {
+        console.log('Contact endpoint failed, trying chat endpoint');
       }
 
-      const rawData = await response.json();
-      console.log('Raw Evolution API response type:', typeof rawData, Array.isArray(rawData));
-      console.log('Fetched items count:', Array.isArray(rawData) ? rawData.length : 'not array');
-      
-      // Handle different response formats from Evolution API
-      const contactsArray = Array.isArray(rawData) ? rawData : (rawData?.contacts || rawData?.data || []);
-      
-      // Log sample of first few items to debug format
-      if (contactsArray.length > 0) {
-        console.log('Sample contact:', JSON.stringify(contactsArray[0]).substring(0, 300));
+      // Method 2: Fallback to /chat/findContacts if contact endpoint returns nothing
+      if (rawData.length === 0) {
+        const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
+          method: 'POST',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Evolution API error:', errorText);
+          throw new Error(`Failed to fetch contacts: ${response.status}`);
+        }
+
+        const data = await response.json();
+        rawData = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
+        console.log('Chat endpoint returned:', rawData.length, 'items');
       }
 
-      // Map contacts to our format - Evolution API uses remoteJid for WhatsApp IDs
-      // Accept both @s.whatsapp.net format and also check type/isGroup fields
-      contacts = contactsArray
-        .filter((contact: { remoteJid?: string; isGroup?: boolean; type?: string }) => {
-          // Filter only individual contacts (not groups)
-          const isIndividual = contact.remoteJid && 
-                 (contact.remoteJid.endsWith('@s.whatsapp.net') || 
-                  (!contact.remoteJid.endsWith('@g.us') && !contact.isGroup && contact.type !== 'group'));
-          return isIndividual;
+      // Log sample for debugging
+      if (rawData.length > 0) {
+        console.log('Sample item:', JSON.stringify(rawData[0]).substring(0, 300));
+      }
+
+      // Map contacts - filter out groups (ending with @g.us)
+      contacts = (rawData as Array<{ remoteJid?: string; id?: string; pushName?: string; name?: string; isGroup?: boolean; type?: string }>)
+        .filter((contact) => {
+          const jid = contact.remoteJid || contact.id || '';
+          // Keep only individual contacts, not groups
+          return jid.endsWith('@s.whatsapp.net') || 
+                 (jid.includes('@') && !jid.endsWith('@g.us') && !contact.isGroup && contact.type !== 'group');
         })
-        .map((contact: { remoteJid: string; pushName?: string; name?: string }) => ({
-          phoneNumber: contact.remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', ''),
-          name: contact.pushName || contact.name || 'Sem nome',
-        }));
+        .map((contact) => {
+          const jid = contact.remoteJid || contact.id || '';
+          return {
+            phoneNumber: jid.replace('@s.whatsapp.net', '').replace('@c.us', ''),
+            name: contact.pushName || contact.name || 'Sem nome',
+          };
+        });
       
       console.log('Mapped contacts count:', contacts.length);
 
