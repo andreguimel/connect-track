@@ -73,9 +73,9 @@ serve(async (req) => {
 
       const contactsMap = new Map<string, { phoneNumber: string; name: string }>();
       
-      // Method 1: /chat/findChats - gets ALL chats with lastMessage containing pushName
+      // Primary Method: /chat/findChats - most reliable for getting contacts with names
       try {
-        console.log('Trying /chat/findChats endpoint...');
+        console.log('Calling /chat/findChats...');
         const chatsResponse = await fetch(`${apiUrl}/chat/findChats/${instance.instance_name}`, {
           method: 'POST',
           headers: {
@@ -88,30 +88,60 @@ serve(async (req) => {
         if (chatsResponse.ok) {
           const data = await chatsResponse.json();
           const chatsArray = Array.isArray(data) ? data : (data?.chats || data?.data || []);
-          console.log('/chat/findChats returned:', chatsArray.length, 'items');
+          console.log('/chat/findChats returned:', chatsArray.length, 'chats');
           
-          for (const c of chatsArray) {
-            const jid = c.remoteJid || c.id || '';
-            if (jid.endsWith('@s.whatsapp.net')) {
-              const phoneNumber = jid.replace('@s.whatsapp.net', '');
-              // FIXED: Only use lastMessage.pushName if message is FROM the contact (not fromMe)
-              // This prevents "Você" appearing as the name when the last message was sent by the user
-              const isFromContact = c.lastMessage?.key?.fromMe === false;
-              const nameFromLastMessage = isFromContact ? (c.lastMessage?.pushName || '') : '';
-              // Priority: chat pushName > lastMessage pushName (only if from contact) > other fields
-              const name = c.pushName || nameFromLastMessage || c.name || c.notify || c.verifiedName || c.displayName || '';
-              contactsMap.set(phoneNumber, { phoneNumber, name: name || `Contato ${phoneNumber}` });
-            }
+          // Log first item for debugging
+          if (chatsArray.length > 0) {
+            console.log('Sample chat object:', JSON.stringify(chatsArray[0]).substring(0, 500));
           }
-          console.log('After /chat/findChats, map has:', contactsMap.size, 'contacts');
+          
+          for (const chat of chatsArray) {
+            const jid = chat.remoteJid || chat.id || '';
+            
+            // Only process individual contacts (not groups)
+            if (!jid.endsWith('@s.whatsapp.net')) continue;
+            
+            const phoneNumber = jid.replace('@s.whatsapp.net', '');
+            
+            // Extract name from multiple possible sources
+            // Priority: contact's own pushName > message pushName (if from contact) > other fields
+            let name = '';
+            
+            // 1. Direct pushName on chat object
+            if (chat.pushName && chat.pushName.trim()) {
+              name = chat.pushName.trim();
+            }
+            
+            // 2. From lastMessage (only if message is FROM the contact, not fromMe)
+            if (!name && chat.lastMessage) {
+              const isFromContact = chat.lastMessage.key?.fromMe === false;
+              if (isFromContact && chat.lastMessage.pushName && chat.lastMessage.pushName.trim()) {
+                name = chat.lastMessage.pushName.trim();
+              }
+            }
+            
+            // 3. Other name fields
+            if (!name) {
+              name = chat.name || chat.notify || chat.verifiedName || chat.displayName || '';
+              name = name.trim();
+            }
+            
+            // Store with name or fallback
+            const finalName = name || `Contato ${phoneNumber}`;
+            contactsMap.set(phoneNumber, { phoneNumber, name: finalName });
+            
+            console.log(`Contact: ${phoneNumber} -> "${finalName}" (original pushName: ${chat.pushName || 'N/A'})`);
+          }
         }
       } catch (e) {
         console.log('/chat/findChats error:', e);
       }
 
-      // Method 2: /chat/findContacts - may have additional contacts
+      console.log('After /chat/findChats, total contacts:', contactsMap.size);
+
+      // Secondary Method: /chat/findContacts - may have additional contacts
       try {
-        console.log('Trying /chat/findContacts endpoint...');
+        console.log('Calling /chat/findContacts...');
         const response = await fetch(`${apiUrl}/chat/findContacts/${instance.instance_name}`, {
           method: 'POST',
           headers: {
@@ -128,19 +158,17 @@ serve(async (req) => {
           
           for (const c of contactsArray) {
             const jid = c.remoteJid || c.id || '';
-            if (jid.endsWith('@s.whatsapp.net')) {
-              const phoneNumber = jid.replace('@s.whatsapp.net', '');
-              const name = c.pushName || c.name || c.notify || c.verifiedName || c.displayName || '';
-              
-              // Update if we have a real name and existing doesn't
-              if (name && name.trim()) {
-                const existing = contactsMap.get(phoneNumber);
-                if (!existing || existing.name.startsWith('Contato ')) {
-                  contactsMap.set(phoneNumber, { phoneNumber, name });
-                }
-              } else if (!contactsMap.has(phoneNumber)) {
-                contactsMap.set(phoneNumber, { phoneNumber, name: `Contato ${phoneNumber}` });
-              }
+            if (!jid.endsWith('@s.whatsapp.net')) continue;
+            
+            const phoneNumber = jid.replace('@s.whatsapp.net', '');
+            const name = (c.pushName || c.name || c.notify || c.verifiedName || '').trim();
+            
+            // Only update if we have a better name
+            const existing = contactsMap.get(phoneNumber);
+            if (name && (!existing || existing.name.startsWith('Contato '))) {
+              contactsMap.set(phoneNumber, { phoneNumber, name });
+            } else if (!existing) {
+              contactsMap.set(phoneNumber, { phoneNumber, name: `Contato ${phoneNumber}` });
             }
           }
         }
@@ -148,89 +176,11 @@ serve(async (req) => {
         console.log('/chat/findContacts error:', e);
       }
 
-      // Method 3: /contact/fetchAll - alternative endpoint in some versions
-      try {
-        console.log('Trying /contact/fetchAll endpoint...');
-        const fetchAllResponse = await fetch(`${apiUrl}/contact/fetchAll/${instance.instance_name}`, {
-          method: 'GET',
-          headers: {
-            'apikey': evolutionApiKey,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (fetchAllResponse.ok) {
-          const data = await fetchAllResponse.json();
-          const contactsArray = Array.isArray(data) ? data : (data?.contacts || data?.data || []);
-          console.log('/contact/fetchAll returned:', contactsArray.length, 'items');
-          
-          for (const c of contactsArray) {
-            const jid = c.remoteJid || c.id || c.wuid || '';
-            const phoneNumber = jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-            if (phoneNumber && /^\d+$/.test(phoneNumber)) {
-              const name = c.pushName || c.name || c.notify || c.verifiedName || '';
-              if (name && name.trim()) {
-                const existing = contactsMap.get(phoneNumber);
-                if (!existing || existing.name.startsWith('Contato ')) {
-                  contactsMap.set(phoneNumber, { phoneNumber, name });
-                }
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.log('/contact/fetchAll error:', e);
-      }
-
-      // Method 4: /message/findMessages - extract names from message history
-      try {
-        console.log('Trying /message/findMessages endpoint...');
-        const messagesResponse = await fetch(`${apiUrl}/message/findMessages/${instance.instance_name}`, {
-          method: 'POST',
-          headers: {
-            'apikey': evolutionApiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ where: {}, page: 1, offset: 500 }),
-        });
-
-        if (messagesResponse.ok) {
-          const data = await messagesResponse.json();
-          const messages = data?.messages?.records || (Array.isArray(data) ? data : (data?.messages || data?.data || []));
-          console.log('/message/findMessages returned:', Array.isArray(messages) ? messages.length : 'N/A', 'messages');
-          
-          if (Array.isArray(messages)) {
-            let namesFromMessages = 0;
-            for (const msg of messages) {
-              // FIXED: Only use pushName from messages sent BY the contact (not fromMe)
-              if (msg.key?.fromMe === true) continue;
-              
-              const jid = msg.key?.remoteJid || msg.remoteJid || '';
-              if (jid.endsWith('@s.whatsapp.net')) {
-                const phoneNumber = jid.replace('@s.whatsapp.net', '');
-                const name = msg.pushName || '';
-                
-                if (name && name.trim()) {
-                  const existing = contactsMap.get(phoneNumber);
-                  if (!existing || existing.name.startsWith('Contato ')) {
-                    contactsMap.set(phoneNumber, { phoneNumber, name });
-                    namesFromMessages++;
-                  }
-                }
-              }
-            }
-            console.log('Names extracted from messages:', namesFromMessages);
-          }
-        }
-      } catch (e) {
-        console.log('/message/findMessages error:', e);
-      }
-
       contacts = Array.from(contactsMap.values());
       
-      // Count contacts with real names vs placeholder
-      const withNames = contacts.filter(c => !c.name.startsWith('Contato ')).length;
-      console.log(`Final: ${contacts.length} contacts, ${withNames} with real names`);
+      // Summary
+      const withRealNames = contacts.filter(c => !c.name.startsWith('Contato ')).length;
+      console.log(`Final result: ${contacts.length} contacts, ${withRealNames} with real names`);
 
     } else if (action === 'fetchGroupParticipants') {
       if (!groupJid) {
