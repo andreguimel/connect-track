@@ -120,7 +120,7 @@ A mensagem deve parecer quase igual, apenas com pequenas variações sutis em TO
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: 1000,
+        max_tokens: 4000,
         temperature: 0.7,
         ...(variationCount > 1 && { response_format: { type: 'json_object' } }),
       }),

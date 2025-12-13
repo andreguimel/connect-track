@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2, Sparkles } from 'lucide-react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2, Sparkles, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,6 +73,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [newVariation, setNewVariation] = useState('');
   const [isGeneratingVariations, setIsGeneratingVariations] = useState(false);
   const [suggestedVariations, setSuggestedVariations] = useState<string[]>([]);
+  const [previewVariationIndex, setPreviewVariationIndex] = useState<number | null>(null);
 
   // Set default instance when instances load
   useEffect(() => {
@@ -736,39 +737,57 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                         Adicionar todas
                       </Button>
                     </div>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
                       {suggestedVariations.map((variation, index) => (
                         <div
                           key={index}
-                          className="flex items-start gap-2 rounded-lg border bg-background p-2"
+                          className="rounded-lg border bg-background p-2"
                         >
-                          <p className="flex-1 text-sm text-foreground whitespace-pre-wrap line-clamp-2">
-                            {variation}
-                          </p>
-                          <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => {
-                                setMessageVariations([...messageVariations, variation]);
-                                setSuggestedVariations(suggestedVariations.filter((_, i) => i !== index));
-                              }}
+                          <div className="flex items-start gap-2">
+                            <p 
+                              className={`flex-1 text-sm text-foreground whitespace-pre-wrap ${previewVariationIndex === index ? '' : 'line-clamp-2'}`}
                             >
-                              <Plus className="h-3 w-3 text-primary" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => {
-                                setSuggestedVariations(suggestedVariations.filter((_, i) => i !== index));
-                              }}
-                            >
-                              <X className="h-3 w-3 text-muted-foreground" />
-                            </Button>
+                              {variation}
+                            </p>
+                            <div className="flex gap-1 shrink-0">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => setPreviewVariationIndex(previewVariationIndex === index ? null : index)}
+                                title={previewVariationIndex === index ? "Recolher" : "Expandir"}
+                              >
+                                <Eye className={`h-3 w-3 ${previewVariationIndex === index ? 'text-primary' : 'text-muted-foreground'}`} />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  setMessageVariations([...messageVariations, variation]);
+                                  setSuggestedVariations(suggestedVariations.filter((_, i) => i !== index));
+                                  setPreviewVariationIndex(null);
+                                }}
+                                title="Adicionar variação"
+                              >
+                                <Plus className="h-3 w-3 text-primary" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  setSuggestedVariations(suggestedVariations.filter((_, i) => i !== index));
+                                  if (previewVariationIndex === index) setPreviewVariationIndex(null);
+                                }}
+                                title="Remover sugestão"
+                              >
+                                <X className="h-3 w-3 text-muted-foreground" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -805,27 +824,44 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                     <p className="text-sm font-medium text-foreground">
                       {messageVariations.length} variação(ões) adicionada(s):
                     </p>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
                       {messageVariations.map((variation, index) => (
                         <div
                           key={index}
-                          className="flex items-start gap-2 rounded-lg border bg-muted/50 p-3"
+                          className="rounded-lg border bg-muted/50 p-3"
                         >
-                          <span className="text-xs font-medium text-primary">#{index + 1}</span>
-                          <p className="flex-1 text-sm text-foreground whitespace-pre-wrap line-clamp-3">
-                            {variation}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 shrink-0"
-                            onClick={() => {
-                              setMessageVariations(messageVariations.filter((_, i) => i !== index));
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                          <div className="flex items-start gap-2">
+                            <span className="text-xs font-medium text-primary">#{index + 1}</span>
+                            <p 
+                              className={`flex-1 text-sm text-foreground whitespace-pre-wrap ${previewVariationIndex === index + 100 ? '' : 'line-clamp-3'}`}
+                            >
+                              {variation}
+                            </p>
+                            <div className="flex gap-1 shrink-0">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => setPreviewVariationIndex(previewVariationIndex === index + 100 ? null : index + 100)}
+                                title={previewVariationIndex === index + 100 ? "Recolher" : "Expandir"}
+                              >
+                                <Eye className={`h-3 w-3 ${previewVariationIndex === index + 100 ? 'text-primary' : 'text-muted-foreground'}`} />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  setMessageVariations(messageVariations.filter((_, i) => i !== index));
+                                  if (previewVariationIndex === index + 100) setPreviewVariationIndex(null);
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
