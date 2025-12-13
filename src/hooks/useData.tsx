@@ -60,6 +60,7 @@ export interface CampaignContact {
   contact?: Contact;
   recipient_type: 'contact' | 'group';
   group_jid?: string;
+  variation_index?: number | null;
 }
 
 // Contacts Hook
@@ -489,10 +490,12 @@ export function useCampaigns() {
     campaignId: string,
     contactId: string,
     status: CampaignContact['status'],
-    error?: string
+    error?: string,
+    variationIndex?: number | null
   ) => {
-    const updates: { status: string; error?: string; sent_at?: string } = { status };
+    const updates: { status: string; error?: string; sent_at?: string; variation_index?: number | null } = { status };
     if (error) updates.error = error;
+    if (variationIndex !== undefined) updates.variation_index = variationIndex;
     if (status === 'sent' || status === 'delivered') {
       updates.sent_at = new Date().toISOString();
     }

@@ -48,6 +48,7 @@ export type Database = {
           recipient_type: string
           sent_at: string | null
           status: string
+          variation_index: number | null
         }
         Insert: {
           campaign_id: string
@@ -58,6 +59,7 @@ export type Database = {
           recipient_type?: string
           sent_at?: string | null
           status?: string
+          variation_index?: number | null
         }
         Update: {
           campaign_id?: string
@@ -68,6 +70,7 @@ export type Database = {
           recipient_type?: string
           sent_at?: string | null
           status?: string
+          variation_index?: number | null
         }
         Relationships: [
           {
