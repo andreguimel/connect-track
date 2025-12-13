@@ -99,6 +99,7 @@ const Index = () => {
     const campaignContacts = await getCampaignContacts(campaign.id);
     const pendingContacts = campaignContacts.filter(cc => cc.status === 'pending');
     let batchCount = 0;
+    let messageCounter = 0; // Contador separado para rotação de variações
 
     toast({
       title: "Campanha iniciada",
@@ -127,9 +128,10 @@ const Index = () => {
         if (variations && variations.length > 0) {
           // Combinar mensagem principal com variações e alternar entre elas
           const allMessages = [campaign.message, ...variations];
-          const messageIndex = batchCount % allMessages.length;
+          const messageIndex = messageCounter % allMessages.length;
           baseMessage = allMessages[messageIndex];
-          console.log(`Usando variação ${messageIndex + 1}/${allMessages.length}`);
+          console.log(`Usando variação ${messageIndex + 1}/${allMessages.length}: ${baseMessage.substring(0, 50)}...`);
+          messageCounter++;
         }
         
         let finalMessage = baseMessage.replace('{nome}', cc.contact?.name || '');
