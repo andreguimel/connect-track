@@ -29,37 +29,15 @@ serve(async (req) => {
     console.log(`Gerando ${variationCount} variação(ões) para:`, message.substring(0, 50) + '...');
 
     const systemPrompt = variationCount > 1 
-      ? `Você é um especialista em reescrever mensagens de forma SUTIL para evitar detecção de mensagens duplicadas.
+      ? `Você é um especialista em reescrever mensagens COMPLETAS de forma SUTIL para evitar detecção de mensagens duplicadas.
 
-OBJETIVO: Criar ${variationCount} variações diferentes da mensagem, cada uma com pequenas alterações na estrutura sem mudar o conteúdo.
+OBJETIVO: Criar ${variationCount} variações diferentes da mensagem INTEIRA (do início ao fim, incluindo TODAS as linhas), cada uma com pequenas alterações na estrutura sem mudar o conteúdo.
 
-TÉCNICAS DE VARIAÇÃO PERMITIDAS:
-- Mude a ORDEM de algumas palavras ou frases
-- Use SINÔNIMOS simples (palavras diferentes com mesmo significado)
-- Varie conectivos: "e", "também", "além disso", "ainda"
-- Altere levemente a estrutura das frases
-- Mude saudações simples: "Oi", "Olá", "Olá!" (se existir)
-- Adicione ou remova palavras como: "então", "né", "viu", "tá"
-
-PROIBIDO - NÃO FAÇA:
-- NÃO adicione emojis ou ícones que não existiam na mensagem original
-- NÃO remova emojis que existiam na mensagem original
-- NÃO mude emojis por outros diferentes
-- NÃO adicione saudações se não tinha
-- NÃO adicione despedidas se não tinha
-- NÃO mude o tom da mensagem (formal/informal)
-- NÃO adicione informações novas
-
-REGRAS OBRIGATÓRIAS:
-1. PRESERVE exatamente os mesmos emojis nas mesmas posições (ou muito próximas)
-2. PRESERVE variáveis {nome}, {empresa}, etc. EXATAMENTE como estão
-3. PRESERVE números, datas, valores, links e URLs sem alteração
-4. PRESERVE formatação WhatsApp (*negrito*, _itálico_, ~tachado~)
-5. Cada variação deve ser diferente das outras
-6. Responda em formato JSON com array "variations" contendo as ${variationCount} variações`
-      : `Você é um especialista em reescrever mensagens de forma SUTIL para evitar detecção de mensagens duplicadas.
-
-OBJETIVO: Fazer pequenas alterações na estrutura sem mudar o conteúdo ou adicionar elementos novos.
+IMPORTANTE - MENSAGENS MULTI-LINHA:
+- A mensagem pode ter VÁRIAS LINHAS separadas por quebras de linha
+- Você DEVE variar TODAS as partes da mensagem, do primeiro ao último caractere
+- PRESERVE a estrutura de parágrafos e quebras de linha da mensagem original
+- Cada parágrafo/linha deve receber variações sutis
 
 TÉCNICAS DE VARIAÇÃO PERMITIDAS:
 - Mude a ORDEM de algumas palavras ou frases
@@ -77,15 +55,54 @@ PROIBIDO - NÃO FAÇA:
 - NÃO adicione despedidas se não tinha
 - NÃO mude o tom da mensagem (formal/informal)
 - NÃO adicione informações novas
+- NÃO encurte a mensagem - mantenha TODO o conteúdo
 
 REGRAS OBRIGATÓRIAS:
 1. PRESERVE exatamente os mesmos emojis nas mesmas posições (ou muito próximas)
 2. PRESERVE variáveis {nome}, {empresa}, etc. EXATAMENTE como estão
 3. PRESERVE números, datas, valores, links e URLs sem alteração
 4. PRESERVE formatação WhatsApp (*negrito*, _itálico_, ~tachado~)
-5. Responda APENAS com a mensagem reescrita, nada mais
+5. PRESERVE todas as quebras de linha e estrutura de parágrafos
+6. Cada variação deve ser diferente das outras
+7. A variação deve cobrir a mensagem INTEIRA, não apenas o início
+8. Responda em formato JSON com array "variations" contendo as ${variationCount} variações COMPLETAS`
+      : `Você é um especialista em reescrever mensagens COMPLETAS de forma SUTIL para evitar detecção de mensagens duplicadas.
 
-A mensagem deve parecer quase igual, apenas com pequenas variações sutis.`;
+OBJETIVO: Fazer pequenas alterações na estrutura da mensagem INTEIRA (do início ao fim) sem mudar o conteúdo ou adicionar elementos novos.
+
+IMPORTANTE - MENSAGENS MULTI-LINHA:
+- A mensagem pode ter VÁRIAS LINHAS separadas por quebras de linha
+- Você DEVE variar TODAS as partes da mensagem, do primeiro ao último caractere
+- PRESERVE a estrutura de parágrafos e quebras de linha da mensagem original
+
+TÉCNICAS DE VARIAÇÃO PERMITIDAS:
+- Mude a ORDEM de algumas palavras ou frases
+- Use SINÔNIMOS simples (palavras diferentes com mesmo significado)
+- Varie conectivos: "e", "também", "além disso", "ainda"
+- Altere levemente a estrutura das frases
+- Mude saudações simples: "Oi", "Olá", "Olá!" (se existir)
+- Adicione ou remova palavras como: "então", "né", "viu", "tá"
+
+PROIBIDO - NÃO FAÇA:
+- NÃO adicione emojis ou ícones que não existiam na mensagem original
+- NÃO remova emojis que existiam na mensagem original
+- NÃO mude emojis por outros diferentes
+- NÃO adicione saudações se não tinha
+- NÃO adicione despedidas se não tinha
+- NÃO mude o tom da mensagem (formal/informal)
+- NÃO adicione informações novas
+- NÃO encurte a mensagem - mantenha TODO o conteúdo
+
+REGRAS OBRIGATÓRIAS:
+1. PRESERVE exatamente os mesmos emojis nas mesmas posições (ou muito próximas)
+2. PRESERVE variáveis {nome}, {empresa}, etc. EXATAMENTE como estão
+3. PRESERVE números, datas, valores, links e URLs sem alteração
+4. PRESERVE formatação WhatsApp (*negrito*, _itálico_, ~tachado~)
+5. PRESERVE todas as quebras de linha e estrutura de parágrafos
+6. A variação deve cobrir a mensagem INTEIRA, não apenas o início
+7. Responda APENAS com a mensagem reescrita COMPLETA, nada mais
+
+A mensagem deve parecer quase igual, apenas com pequenas variações sutis em TODAS as partes.`;
 
     const userPrompt = variationCount > 1
       ? `Crie ${variationCount} variações SUTIS desta mensagem. NÃO adicione emojis, ícones ou elementos novos. Responda em JSON com formato: {"variations": ["variação1", "variação2", ...]}\n\nMensagem original:\n${message}`
