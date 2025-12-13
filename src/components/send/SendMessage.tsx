@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2 } from 'lucide-react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +71,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   // Message variations for anti-ban
   const [messageVariations, setMessageVariations] = useState<string[]>([]);
   const [newVariation, setNewVariation] = useState('');
+  const [isGeneratingVariations, setIsGeneratingVariations] = useState(false);
+  const [suggestedVariations, setSuggestedVariations] = useState<string[]>([]);
 
   // Set default instance when instances load
   useEffect(() => {
@@ -486,6 +488,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setScheduledTime('');
     setMessageVariations([]);
     setNewVariation('');
+    setSuggestedVariations([]);
     clearMedia();
   }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients, messageVariations]);
 
@@ -644,19 +647,140 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
 
               {/* Message Variations */}
               <div className="space-y-3 border-t pt-4">
-                <div className="flex items-center gap-2">
-                  <Shuffle className="h-4 w-4 text-primary" />
-                  <Label>Variações da Mensagem (Anti-ban)</Label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Shuffle className="h-4 w-4 text-primary" />
+                    <Label>Variações da Mensagem (Anti-ban)</Label>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!message.trim()) {
+                        toast({
+                          title: "Mensagem vazia",
+                          description: "Digite a mensagem principal primeiro",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      setIsGeneratingVariations(true);
+                      setSuggestedVariations([]);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('variate-message', {
+                          body: { message: message.trim(), count: 3 }
+                        });
+                        if (error) throw error;
+                        if (data?.success && data?.variations?.length > 0) {
+                          setSuggestedVariations(data.variations);
+                          toast({
+                            title: "Variações geradas",
+                            description: `${data.variations.length} sugestões criadas pela IA`,
+                          });
+                        } else {
+                          throw new Error(data?.error || 'Erro ao gerar variações');
+                        }
+                      } catch (error) {
+                        console.error('Erro ao gerar variações:', error);
+                        toast({
+                          title: "Erro ao gerar",
+                          description: "Não foi possível gerar variações. Tente novamente.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsGeneratingVariations(false);
+                      }
+                    }}
+                    disabled={isGeneratingVariations || !message.trim()}
+                  >
+                    {isGeneratingVariations ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Sugerir com IA
+                      </>
+                    )}
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Adicione variações da mensagem para alternar entre elas durante o envio. Isso ajuda a evitar bloqueios do WhatsApp.
                 </p>
+
+                {/* AI Suggestions */}
+                {suggestedVariations.length > 0 && (
+                  <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-primary flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Sugestões da IA
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs"
+                        onClick={() => {
+                          setMessageVariations([...messageVariations, ...suggestedVariations]);
+                          setSuggestedVariations([]);
+                          toast({
+                            title: "Variações adicionadas",
+                            description: `${suggestedVariations.length} variações foram adicionadas`,
+                          });
+                        }}
+                      >
+                        Adicionar todas
+                      </Button>
+                    </div>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {suggestedVariations.map((variation, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-2 rounded-lg border bg-background p-2"
+                        >
+                          <p className="flex-1 text-sm text-foreground whitespace-pre-wrap line-clamp-2">
+                            {variation}
+                          </p>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setMessageVariations([...messageVariations, variation]);
+                                setSuggestedVariations(suggestedVariations.filter((_, i) => i !== index));
+                              }}
+                            >
+                              <Plus className="h-3 w-3 text-primary" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setSuggestedVariations(suggestedVariations.filter((_, i) => i !== index));
+                              }}
+                            >
+                              <X className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex gap-2">
                   <Textarea
                     value={newVariation}
                     onChange={(e) => setNewVariation(e.target.value)}
-                    placeholder="Digite uma variação da mensagem..."
+                    placeholder="Ou digite uma variação manualmente..."
                     className="min-h-[80px] flex-1"
                   />
                   <Button
