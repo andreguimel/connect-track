@@ -674,10 +674,11 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                         });
                         if (error) throw error;
                         if (data?.success && data?.variations?.length > 0) {
-                          setSuggestedVariations(data.variations);
+                          // Adiciona automaticamente as variações geradas
+                          setMessageVariations(prev => [...prev, ...data.variations]);
                           toast({
-                            title: "Variações geradas",
-                            description: `${data.variations.length} sugestões criadas pela IA`,
+                            title: "Variações adicionadas",
+                            description: `${data.variations.length} variações foram adicionadas automaticamente`,
                           });
                         } else {
                           throw new Error(data?.error || 'Erro ao gerar variações');
