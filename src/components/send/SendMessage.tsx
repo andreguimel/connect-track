@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock } from 'lucide-react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,6 +67,10 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   
   // Phantom mentions (for groups)
   const [mentionEveryone, setMentionEveryone] = useState(false);
+  
+  // Message variations for anti-ban
+  const [messageVariations, setMessageVariations] = useState<string[]>([]);
+  const [newVariation, setNewVariation] = useState('');
 
   // Set default instance when instances load
   useEffect(() => {
@@ -443,6 +447,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         media_url: mediaUrl,
         media_type: mediaType || undefined,
         groupJids: Array.from(selectedGroupJids),
+        message_variations: messageVariations.length > 0 ? messageVariations : undefined,
       }
     );
 
@@ -479,8 +484,10 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setIsScheduled(false);
     setScheduledDate('');
     setScheduledTime('');
+    setMessageVariations([]);
+    setNewVariation('');
     clearMedia();
-  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients]);
+  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients, messageVariations]);
 
   const filteredSelectedCount = filteredContacts.filter(c => selectedContactIds.has(c.id)).length;
 
@@ -633,6 +640,73 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                 <p className="text-xs text-muted-foreground">
                   Variáveis disponíveis: {'{nome}'} - nome do contato
                 </p>
+              </div>
+
+              {/* Message Variations */}
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center gap-2">
+                  <Shuffle className="h-4 w-4 text-primary" />
+                  <Label>Variações da Mensagem (Anti-ban)</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Adicione variações da mensagem para alternar entre elas durante o envio. Isso ajuda a evitar bloqueios do WhatsApp.
+                </p>
+                
+                <div className="flex gap-2">
+                  <Textarea
+                    value={newVariation}
+                    onChange={(e) => setNewVariation(e.target.value)}
+                    placeholder="Digite uma variação da mensagem..."
+                    className="min-h-[80px] flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-auto"
+                    onClick={() => {
+                      if (newVariation.trim()) {
+                        setMessageVariations([...messageVariations, newVariation.trim()]);
+                        setNewVariation('');
+                      }
+                    }}
+                    disabled={!newVariation.trim()}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {messageVariations.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">
+                      {messageVariations.length} variação(ões) adicionada(s):
+                    </p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {messageVariations.map((variation, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-2 rounded-lg border bg-muted/50 p-3"
+                        >
+                          <span className="text-xs font-medium text-primary">#{index + 1}</span>
+                          <p className="flex-1 text-sm text-foreground whitespace-pre-wrap line-clamp-3">
+                            {variation}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                            onClick={() => {
+                              setMessageVariations(messageVariations.filter((_, i) => i !== index));
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

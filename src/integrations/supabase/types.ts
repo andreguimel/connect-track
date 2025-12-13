@@ -87,6 +87,7 @@ export type Database = {
           media_type: string | null
           media_url: string | null
           message: string
+          message_variations: string[] | null
           name: string
           scheduled_at: string | null
           stats: Json
@@ -100,6 +101,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message: string
+          message_variations?: string[] | null
           name: string
           scheduled_at?: string | null
           stats?: Json
@@ -113,6 +115,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message?: string
+          message_variations?: string[] | null
           name?: string
           scheduled_at?: string | null
           stats?: Json

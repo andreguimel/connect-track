@@ -34,6 +34,7 @@ export interface Campaign {
   id: string;
   name: string;
   message: string;
+  message_variations?: string[];
   status: 'draft' | 'running' | 'paused' | 'completed' | 'scheduled';
   stats: {
     total: number;
@@ -310,7 +311,8 @@ export function useCampaigns() {
       ...c,
       status: c.status as Campaign['status'],
       stats: c.stats as Campaign['stats'],
-      media_type: c.media_type as Campaign['media_type']
+      media_type: c.media_type as Campaign['media_type'],
+      message_variations: c.message_variations as string[] | undefined
     })));
     setLoading(false);
   }, [user]);
@@ -328,6 +330,7 @@ export function useCampaigns() {
       media_url?: string;
       media_type?: 'image' | 'video' | 'audio' | 'document';
       groupJids?: string[];
+      message_variations?: string[];
     }
   ) => {
     if (!user) return { campaign: null, error: new Error('Not authenticated') };
@@ -353,7 +356,10 @@ export function useCampaigns() {
         status: options?.scheduled_at ? 'scheduled' : 'draft',
         scheduled_at: options?.scheduled_at || null,
         media_url: options?.media_url || null,
-        media_type: options?.media_type || null
+        media_type: options?.media_type || null,
+        message_variations: options?.message_variations && options.message_variations.length > 0 
+          ? options.message_variations 
+          : null
       })
       .select()
       .single();
