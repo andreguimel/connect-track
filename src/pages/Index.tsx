@@ -181,7 +181,9 @@ const Index = () => {
 
         if (error) throw error;
 
-        await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent');
+        // Salvar qual variação foi usada para este contato
+        const variationIndex = (variations && variations.length > 0) ? ((messageCounter - 1) % (variations.length + 1)) : null;
+        await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent', undefined, variationIndex);
         incrementDailySentCount();
         setRefreshKey(k => k + 1);
         batchCount++;

@@ -364,6 +364,7 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
                       <TableHead>Nome</TableHead>
                       <TableHead>Telefone</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Variação</TableHead>
                       <TableHead>Enviado em</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -374,6 +375,15 @@ export function CampaignsList({ onStartCampaign }: CampaignsListProps) {
                         <TableCell className="font-mono text-sm">{cc.contact?.phone || '-'}</TableCell>
                         <TableCell>
                           <StatusBadge status={cc.status} error={cc.error} />
+                        </TableCell>
+                        <TableCell>
+                          {cc.variation_index !== null && cc.variation_index !== undefined ? (
+                            <Badge variant="outline" className="text-xs">
+                              {cc.variation_index === 0 ? 'Principal' : `Var. ${cc.variation_index}`}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {cc.sent_at ? format(new Date(cc.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'}
