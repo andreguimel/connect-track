@@ -671,61 +671,106 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                     <Shuffle className="h-4 w-4 text-primary" />
                     <Label>Variações da Mensagem (Anti-ban)</Label>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      if (!message.trim()) {
-                        toast({
-                          title: "Mensagem vazia",
-                          description: "Digite a mensagem principal primeiro",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      setIsGeneratingVariations(true);
-                      setSuggestedVariations([]);
-                      try {
-                        const { data, error } = await supabase.functions.invoke('variate-message', {
-                          body: { message: message.trim(), count: 3 }
-                        });
-                        if (error) throw error;
-                        if (data?.success && data?.variations?.length > 0) {
-                          // Adiciona automaticamente as variações geradas
-                          setMessageVariations(prev => [...prev, ...data.variations]);
-                          toast({
-                            title: "Variações adicionadas",
-                            description: `${data.variations.length} variações foram adicionadas automaticamente`,
-                          });
-                        } else {
-                          throw new Error(data?.error || 'Erro ao gerar variações');
-                        }
-                      } catch (error) {
-                        console.error('Erro ao gerar variações:', error);
-                        toast({
-                          title: "Erro ao gerar",
-                          description: "Não foi possível gerar variações. Tente novamente.",
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setIsGeneratingVariations(false);
-                      }
-                    }}
-                    disabled={isGeneratingVariations || !message.trim()}
-                  >
-                    {isGeneratingVariations ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Gerando...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Sugerir com IA
-                      </>
+                  <div className="flex gap-2">
+                    {messageVariations.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!message.trim()) return;
+                          setMessageVariations([]);
+                          setIsGeneratingVariations(true);
+                          try {
+                            const { data, error } = await supabase.functions.invoke('variate-message', {
+                              body: { message: message.trim(), count: 3 }
+                            });
+                            if (error) throw error;
+                            if (data?.success && data?.variations?.length > 0) {
+                              setMessageVariations(data.variations);
+                              toast({
+                                title: "Variações regeneradas",
+                                description: `${data.variations.length} novas variações criadas`,
+                              });
+                            } else {
+                              throw new Error(data?.error || 'Erro ao gerar variações');
+                            }
+                          } catch (error) {
+                            console.error('Erro ao regenerar variações:', error);
+                            toast({
+                              title: "Erro ao regenerar",
+                              description: "Não foi possível gerar novas variações.",
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setIsGeneratingVariations(false);
+                          }
+                        }}
+                        disabled={isGeneratingVariations}
+                      >
+                        {isGeneratingVariations ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                        )}
+                        Regenerar
+                      </Button>
                     )}
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (!message.trim()) {
+                          toast({
+                            title: "Mensagem vazia",
+                            description: "Digite a mensagem principal primeiro",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setIsGeneratingVariations(true);
+                        setSuggestedVariations([]);
+                        try {
+                          const { data, error } = await supabase.functions.invoke('variate-message', {
+                            body: { message: message.trim(), count: 3 }
+                          });
+                          if (error) throw error;
+                          if (data?.success && data?.variations?.length > 0) {
+                            setMessageVariations(prev => [...prev, ...data.variations]);
+                            toast({
+                              title: "Variações adicionadas",
+                              description: `${data.variations.length} variações foram adicionadas automaticamente`,
+                            });
+                          } else {
+                            throw new Error(data?.error || 'Erro ao gerar variações');
+                          }
+                        } catch (error) {
+                          console.error('Erro ao gerar variações:', error);
+                          toast({
+                            title: "Erro ao gerar",
+                            description: "Não foi possível gerar variações. Tente novamente.",
+                            variant: "destructive",
+                          });
+                        } finally {
+                          setIsGeneratingVariations(false);
+                        }
+                      }}
+                      disabled={isGeneratingVariations || !message.trim()}
+                    >
+                      {isGeneratingVariations ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Sugerir com IA
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Adicione variações da mensagem para alternar entre elas durante o envio. Isso ajuda a evitar bloqueios do WhatsApp.
