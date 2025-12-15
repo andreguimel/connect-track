@@ -268,6 +268,9 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setSendingProgress({ current: 0, total: pendingContacts.length });
 
     let processed = 0;
+    let messageCounter = 0; // Contador para rotação de variações
+    const variations = campaign.message_variations;
+
     for (const cc of pendingContacts) {
       try {
         await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sending');
@@ -275,10 +278,26 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         // Determine if this is a group or contact
         const isGroup = cc.recipient_type === 'group';
 
+        // Selecionar mensagem: usar variações se existirem
+        let baseMessage = campaign.message;
+        let variationIndex: number | null = null;
+        
+        if (variations && variations.length > 0) {
+          const allMessages = [campaign.message, ...variations];
+          const msgIndex = messageCounter % allMessages.length;
+          baseMessage = allMessages[msgIndex];
+          variationIndex = msgIndex;
+          console.log(`Usando variação ${msgIndex + 1}/${allMessages.length}: ${baseMessage.substring(0, 50)}...`);
+          messageCounter++;
+        }
+        
+        // Substituir variáveis de template
+        const finalMessage = baseMessage.replace('{nome}', isGroup ? (whatsappGroups.find(g => g.group_jid === cc.group_jid)?.name || 'Grupo') : (cc.contact?.name || ''));
+
         const { data, error: proxyError } = await supabase.functions.invoke('n8n-proxy', {
           body: {
             webhookUrl,
-            instanceId: selectedInstanceId, // Pass the selected instance ID
+            instanceId: selectedInstanceId,
             payload: {
               key: selectedInstance.api_key,
               recipientType: cc.recipient_type,
@@ -288,13 +307,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
               contactId: cc.contact_id,
               phone: cc.contact?.phone,
               name: isGroup ? (whatsappGroups.find(g => g.group_jid === cc.group_jid)?.name || 'Grupo') : cc.contact?.name,
-              message: campaign.message,
+              message: finalMessage,
               mediaUrl: campaign.media_url,
               mediaType: campaign.media_type,
               timestamp: new Date().toISOString(),
               evolutionApiUrl: selectedInstance.api_url,
               evolutionInstance: selectedInstance.instance_name,
-              // Phantom mentions for groups
               mentionsEveryOne: isGroup ? mentionEveryone : false,
             },
           },
@@ -303,7 +321,7 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         if (proxyError) throw proxyError;
         console.log('Resposta do proxy:', data);
 
-        await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent');
+        await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sent', undefined, variationIndex);
         processed++;
         setSendingProgress({ current: processed, total: pendingContacts.length });
         
