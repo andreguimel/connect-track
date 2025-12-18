@@ -1,8 +1,5 @@
 project_id = "vjatuupiufxyvprztmke"
 
-[functions.send-buttons]
-verify_jwt = false
-
 [functions.n8n-proxy]
 verify_jwt = false
 

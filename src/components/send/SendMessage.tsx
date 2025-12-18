@@ -17,7 +17,6 @@ import { useToast } from '@/hooks/use-toast';
 import { getAntiBanSettings, getRandomDelay } from '@/lib/antiban';
 import { WhatsAppPreview } from './WhatsAppPreview';
 import { SendConfirmationDialog } from './SendConfirmationDialog';
-import { InteractiveButtonsConfig, InteractiveConfig, defaultInteractiveConfig } from './InteractiveButtonsConfig';
 import {
   Select,
   SelectContent,
@@ -75,9 +74,6 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [isGeneratingVariations, setIsGeneratingVariations] = useState(false);
   const [suggestedVariations, setSuggestedVariations] = useState<string[]>([]);
   const [previewVariationIndex, setPreviewVariationIndex] = useState<number | null>(null);
-  
-  // Interactive buttons/list config
-  const [interactiveConfig, setInteractiveConfig] = useState<InteractiveConfig>(defaultInteractiveConfig);
 
   // Set default instance when instances load
   useEffect(() => {
@@ -318,15 +314,6 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
               evolutionApiUrl: selectedInstance.api_url,
               evolutionInstance: selectedInstance.instance_name,
               mentionsEveryOne: isGroup ? mentionEveryone : false,
-              // Interactive buttons/list config
-              interactive: interactiveConfig.enabled ? {
-                type: interactiveConfig.type,
-                title: interactiveConfig.title || undefined,
-                footer: interactiveConfig.footer || undefined,
-                buttons: interactiveConfig.type === 'buttons' ? interactiveConfig.buttons : undefined,
-                listButtonText: interactiveConfig.type === 'list' ? interactiveConfig.listButtonText : undefined,
-                sections: interactiveConfig.type === 'list' ? interactiveConfig.sections : undefined,
-              } : undefined,
             },
           },
         });
@@ -521,9 +508,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     setMessageVariations([]);
     setNewVariation('');
     setSuggestedVariations([]);
-    setInteractiveConfig(defaultInteractiveConfig);
     clearMedia();
-  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients, messageVariations, interactiveConfig]);
+  }, [campaignName, message, selectedContactIds, selectedGroupJids, webhookUrl, toast, onCampaignCreated, isScheduled, scheduledDate, scheduledTime, mediaFile, mediaType, createCampaign, uploadCampaignMedia, updateCampaign, getCampaignContacts, updateCampaignContactStatus, totalSelectedRecipients, messageVariations]);
 
   const filteredSelectedCount = filteredContacts.filter(c => selectedContactIds.has(c.id)).length;
 
@@ -1010,14 +996,6 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                 Formatos suportados: imagens, vídeos, áudios e documentos (PDF, DOC, DOCX, XLS, XLSX)
               </p>
             </div>
-          </div>
-
-          {/* Interactive Buttons/List */}
-          <div className="rounded-xl border bg-card p-6 shadow-sm">
-            <InteractiveButtonsConfig 
-              config={interactiveConfig}
-              onChange={setInteractiveConfig}
-            />
           </div>
 
           {/* Phantom Mentions for Groups */}

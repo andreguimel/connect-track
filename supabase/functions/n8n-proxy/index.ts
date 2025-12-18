@@ -158,21 +158,13 @@ serve(async (req) => {
       isTest: payload.isTest || false,
       // Phantom mentions for groups
       mentionsEveryOne: isGroup ? (payload.mentionsEveryOne || false) : false,
-      // Interactive buttons/list - send COMPLETE data, not just metadata
-      interactive: payload.interactive || null,
     };
 
-    // Log with full interactive details for debugging
     console.log('Enhanced payload:', {
       ...enhancedPayload,
       key: '***hidden***',
       message: enhancedPayload.message?.substring(0, 50) + '...',
     });
-    
-    // Log interactive config separately for debugging
-    if (enhancedPayload.interactive) {
-      console.log('Interactive config (FULL):', JSON.stringify(enhancedPayload.interactive, null, 2));
-    }
 
     const response = await fetch(webhookUrl, {
       method: 'POST',
