@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X, AlertTriangle, Building2 } from 'lucide-react';
+import { Wifi, WifiOff, Trash2, RefreshCw, QrCode, Phone, Loader2, Pencil, Check, X, AlertTriangle, Building2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useEvolutionInstances, EvolutionInstance, IntegrationType } from '@/hooks/useEvolutionInstances';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   Dialog,
   DialogContent,
@@ -432,8 +434,13 @@ export function EvolutionInstances() {
               </div>
               
               <div className="flex items-center gap-3">
-                {getStatusBadge(instance.status)}
-                
+                <div className="flex flex-col items-end gap-1">
+                  {getStatusBadge(instance.status)}
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {formatDistanceToNow(new Date(instance.updated_at), { addSuffix: true, locale: ptBR })}
+                  </span>
+                </div>
                 <div className="flex gap-1">
                   {instance.status === 'disconnected' && (
                     <Button
