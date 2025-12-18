@@ -180,11 +180,30 @@ serve(async (req) => {
 
         // Always update instance status in database if instanceId provided
         if (instanceId) {
+          // Try multiple fields for phone number from Evolution API response
+          let phoneNumber = statusData.instance?.owner 
+            || statusData.instance?.wid?.user 
+            || statusData.instance?.wid
+            || statusData.owner
+            || null;
+          
+          // Clean up phone number format (remove @s.whatsapp.net suffix if present)
+          if (phoneNumber && typeof phoneNumber === 'string') {
+            phoneNumber = phoneNumber.replace(/@s\.whatsapp\.net$/, '').replace(/@c\.us$/, '');
+            // Format as +XX XXXXX-XXXX if Brazilian number
+            if (phoneNumber.length >= 10 && phoneNumber.length <= 13) {
+              const digits = phoneNumber.replace(/\D/g, '');
+              if (digits.startsWith('55') && digits.length >= 12) {
+                phoneNumber = `+${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
+              }
+            }
+          }
+          
           const { error: updateError } = await supabase
             .from('evolution_instances')
             .update({ 
               status,
-              phone_number: statusData.instance?.owner || null,
+              phone_number: phoneNumber,
               updated_at: new Date().toISOString()
             })
             .eq('id', instanceId)

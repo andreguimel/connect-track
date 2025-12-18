@@ -430,6 +430,12 @@ export function EvolutionInstances() {
                       via Evolution API
                     </span>
                   </div>
+                  {instance.phone_number && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3" />
+                      {instance.phone_number}
+                    </span>
+                  )}
                 </div>
               </div>
               
