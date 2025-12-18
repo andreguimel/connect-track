@@ -158,12 +158,19 @@ serve(async (req) => {
       isTest: payload.isTest || false,
       // Phantom mentions for groups
       mentionsEveryOne: isGroup ? (payload.mentionsEveryOne || false) : false,
+      // Interactive buttons/list (if provided)
+      interactive: payload.interactive || null,
     };
 
     console.log('Enhanced payload:', {
       ...enhancedPayload,
       key: '***hidden***',
       message: enhancedPayload.message?.substring(0, 50) + '...',
+      interactive: enhancedPayload.interactive ? {
+        type: enhancedPayload.interactive.type,
+        buttonsCount: enhancedPayload.interactive.buttons?.length || 0,
+        sectionsCount: enhancedPayload.interactive.sections?.length || 0,
+      } : null,
     });
 
     const response = await fetch(webhookUrl, {
