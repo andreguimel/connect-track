@@ -142,34 +142,57 @@ serve(async (req) => {
       case 'status': {
         // Check connection status
         console.log(`Checking status for: ${instanceName}`);
-        const statusResponse = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
-          method: 'GET',
-          headers,
-        });
         
-        const statusData = await statusResponse.json();
-        console.log('Status response:', JSON.stringify(statusData));
-
-        const state = statusData.instance?.state || statusData.state || 'disconnected';
         let status = 'disconnected';
+        let statusData: any = {};
         
-        if (state === 'open' || state === 'connected') {
-          status = 'connected';
-        } else if (state === 'connecting') {
-          status = 'connecting';
+        try {
+          const statusResponse = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
+            method: 'GET',
+            headers,
+          });
+          
+          // If instance doesn't exist or API error, treat as disconnected
+          if (!statusResponse.ok) {
+            console.log(`Status check failed with HTTP ${statusResponse.status}`);
+            status = 'disconnected';
+          } else {
+            statusData = await statusResponse.json();
+            console.log('Status response:', JSON.stringify(statusData));
+
+            // Handle various state formats from Evolution API
+            const state = (statusData.instance?.state || statusData.state || '').toLowerCase();
+            
+            // Only 'open' and 'connected' mean truly connected
+            if (state === 'open' || state === 'connected') {
+              status = 'connected';
+            } else if (state === 'connecting' || state === 'qrcode') {
+              status = 'connecting';
+            } else {
+              // Any other state (close, closed, disconnected, empty, etc.) = disconnected
+              status = 'disconnected';
+            }
+          }
+        } catch (fetchError) {
+          console.error('Error fetching status from Evolution API:', fetchError);
+          status = 'disconnected';
         }
 
-        // Update instance status in database if instanceId provided
+        // Always update instance status in database if instanceId provided
         if (instanceId) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('evolution_instances')
             .update({ 
               status,
-              phone_number: statusData.instance?.profilePictureUrl ? statusData.instance?.owner : null,
+              phone_number: statusData.instance?.owner || null,
               updated_at: new Date().toISOString()
             })
             .eq('id', instanceId)
             .eq('user_id', user.id);
+          
+          if (updateError) {
+            console.error('Error updating instance status in DB:', updateError);
+          }
         }
         
         result = {
