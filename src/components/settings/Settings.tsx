@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Save, Zap, Info, Shield, Clock, AlertTriangle, Send, CheckCircle, XCircle, Loader2, Wifi } from 'lucide-react';
+import { Save, Zap, Info, Shield, Clock, AlertTriangle, Send, CheckCircle, XCircle, Loader2, Wifi, ChevronDown, ChevronUp, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   AntiBanSettings, 
+  ProtectionLevel,
   getAntiBanSettings, 
   saveAntiBanSettings,
+  getSettingsForLevel,
+  protectionPresets,
+  protectionLevelInfo,
   getDailySentCount,
   getRemainingDaily
 } from '@/lib/antiban';
@@ -30,6 +36,7 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
   const [localWebhookUrl, setLocalWebhookUrl] = useState(webhookUrl);
   const [antiBanSettings, setAntiBanSettings] = useState<AntiBanSettings>(getAntiBanSettings);
   const [dailySent, setDailySent] = useState(getDailySentCount);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [testMessage, setTestMessage] = useState('Olá! Esta é uma mensagem de teste do ZapSender.');
   const [isTesting, setIsTesting] = useState(false);
@@ -65,7 +72,7 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
     });
   };
 
-  const updateAntiBan = (key: keyof AntiBanSettings, value: number | boolean) => {
+  const updateAntiBan = (key: keyof AntiBanSettings, value: number | boolean | ProtectionLevel) => {
     const newSettings = { ...antiBanSettings, [key]: value };
     setAntiBanSettings(newSettings);
     
@@ -79,6 +86,23 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
         description: "Configuração salva automaticamente",
       });
     }
+  };
+
+  const handleProtectionLevelChange = (sliderValue: number[]) => {
+    const levels: ProtectionLevel[] = ['safe', 'moderate', 'aggressive'];
+    const level = levels[sliderValue[0]];
+    const newSettings = getSettingsForLevel(level, antiBanSettings);
+    setAntiBanSettings(newSettings);
+    saveAntiBanSettings(newSettings);
+    toast({
+      title: `Nível: ${protectionLevelInfo[level].label}`,
+      description: protectionLevelInfo[level].description,
+    });
+  };
+
+  const getSliderValue = (): number[] => {
+    const levels: ProtectionLevel[] = ['safe', 'moderate', 'aggressive'];
+    return [levels.indexOf(antiBanSettings.protectionLevel)];
   };
 
   const handleTestMessage = async () => {
@@ -238,91 +262,60 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
               Proteção Anti-Ban
             </h2>
             <p className="mt-1 text-muted-foreground">
-              Configure delays e limites para evitar bloqueio do número
+              Ajuste o nível de proteção ou personalize as configurações
             </p>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="min-delay">Delay Mínimo (segundos)</Label>
-            <Input
-              id="min-delay"
-              type="number"
-              min={5}
-              max={60}
-              value={antiBanSettings.minDelaySeconds}
-              onChange={(e) => updateAntiBan('minDelaySeconds', parseInt(e.target.value) || 8)}
-            />
-            <p className="text-xs text-muted-foreground">Mínimo 5s recomendado</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="max-delay">Delay Máximo (segundos)</Label>
-            <Input
-              id="max-delay"
-              type="number"
-              min={10}
-              max={120}
-              value={antiBanSettings.maxDelaySeconds}
-              onChange={(e) => updateAntiBan('maxDelaySeconds', parseInt(e.target.value) || 25)}
-            />
-            <p className="text-xs text-muted-foreground">Variação aleatória entre min/max</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="daily-limit">Limite Diário</Label>
-            <Input
-              id="daily-limit"
-              type="number"
-              min={50}
-              max={2000}
-              value={antiBanSettings.dailyLimit}
-              onChange={(e) => updateAntiBan('dailyLimit', parseInt(e.target.value) || 800)}
-            />
-            <p className="text-xs text-muted-foreground">500-800 recomendado para segurança</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="batch-size">Tamanho do Lote</Label>
-            <Input
-              id="batch-size"
-              type="number"
-              min={10}
-              max={100}
-              value={antiBanSettings.batchSize}
-              onChange={(e) => updateAntiBan('batchSize', parseInt(e.target.value) || 50)}
-            />
-            <p className="text-xs text-muted-foreground">Pausa após cada lote</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="batch-pause">Pausa entre Lotes (minutos)</Label>
-            <Input
-              id="batch-pause"
-              type="number"
-              min={1}
-              max={30}
-              value={antiBanSettings.batchPauseMinutes}
-              onChange={(e) => updateAntiBan('batchPauseMinutes', parseInt(e.target.value) || 5)}
-            />
-            <p className="text-xs text-muted-foreground">Tempo de descanso entre lotes</p>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border bg-background p-4">
-            <div>
-              <Label htmlFor="random-variation">Variação Aleatória</Label>
-              <p className="text-xs text-muted-foreground">Adiciona variação básica na mensagem</p>
+        {/* Protection Level Slider - Simple Mode */}
+        <div className="mt-6 space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-medium">Nível de Proteção</Label>
+              <span className={`text-sm font-semibold ${protectionLevelInfo[antiBanSettings.protectionLevel].color}`}>
+                {protectionLevelInfo[antiBanSettings.protectionLevel].label}
+              </span>
             </div>
-            <Switch
-              id="random-variation"
-              checked={antiBanSettings.enableRandomVariation}
-              onCheckedChange={(checked) => updateAntiBan('enableRandomVariation', checked)}
-              disabled={antiBanSettings.enableAIVariation}
-            />
+            
+            <div className="px-2">
+              <Slider
+                value={getSliderValue()}
+                onValueChange={handleProtectionLevelChange}
+                min={0}
+                max={2}
+                step={1}
+                className="w-full"
+              />
+              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                <span className="text-success">Seguro</span>
+                <span className="text-warning">Moderado</span>
+                <span className="text-destructive">Rápido</span>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground text-center">
+              {protectionLevelInfo[antiBanSettings.protectionLevel].description}
+            </p>
+
+            {/* Current settings summary */}
+            <div className="grid grid-cols-3 gap-3 rounded-lg border bg-secondary/30 p-4 text-center">
+              <div>
+                <p className="text-2xl font-bold text-foreground">{antiBanSettings.dailyLimit}</p>
+                <p className="text-xs text-muted-foreground">Limite/dia</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{antiBanSettings.minDelaySeconds}-{antiBanSettings.maxDelaySeconds}s</p>
+                <p className="text-xs text-muted-foreground">Intervalo</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{antiBanSettings.batchSize}</p>
+                <p className="text-xs text-muted-foreground">Por lote</p>
+              </div>
+            </div>
           </div>
 
-          <div className="col-span-2 flex items-center justify-between rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
+          {/* AI Variation Toggle - Always visible */}
+          <div className="flex items-center justify-between rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <Zap className="h-5 w-5 text-primary" />
@@ -335,7 +328,7 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Usa OpenAI para reescrever cada mensagem de forma única
+                  Reescreve cada mensagem de forma única automaticamente
                 </p>
               </div>
             </div>
@@ -347,35 +340,124 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
           </div>
 
           {antiBanSettings.enableAIVariation && (
-            <div className="col-span-2 rounded-lg border border-info/20 bg-info/5 p-3">
+            <div className="rounded-lg border border-info/20 bg-info/5 p-3">
               <div className="flex gap-2">
                 <Info className="h-4 w-4 shrink-0 text-info" />
                 <p className="text-xs text-muted-foreground">
-                  A IA reescreverá cada mensagem mantendo o significado, mas com palavras e estrutura diferentes. 
-                  Custo estimado: ~$0.0001 por mensagem.
+                  A IA reescreverá cada mensagem mantendo o significado, mas com palavras e estrutura diferentes.
                 </p>
               </div>
             </div>
           )}
+
+          {/* Advanced Settings - Collapsible */}
+          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="h-4 w-4" />
+                  <span>Configurações Avançadas</span>
+                </div>
+                {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="min-delay">Delay Mínimo (segundos)</Label>
+                  <Input
+                    id="min-delay"
+                    type="number"
+                    min={5}
+                    max={60}
+                    value={antiBanSettings.minDelaySeconds}
+                    onChange={(e) => updateAntiBan('minDelaySeconds', parseInt(e.target.value) || 8)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="max-delay">Delay Máximo (segundos)</Label>
+                  <Input
+                    id="max-delay"
+                    type="number"
+                    min={10}
+                    max={120}
+                    value={antiBanSettings.maxDelaySeconds}
+                    onChange={(e) => updateAntiBan('maxDelaySeconds', parseInt(e.target.value) || 25)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="daily-limit">Limite Diário</Label>
+                  <Input
+                    id="daily-limit"
+                    type="number"
+                    min={50}
+                    max={2000}
+                    value={antiBanSettings.dailyLimit}
+                    onChange={(e) => updateAntiBan('dailyLimit', parseInt(e.target.value) || 800)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="batch-size">Tamanho do Lote</Label>
+                  <Input
+                    id="batch-size"
+                    type="number"
+                    min={10}
+                    max={100}
+                    value={antiBanSettings.batchSize}
+                    onChange={(e) => updateAntiBan('batchSize', parseInt(e.target.value) || 50)}
+                  />
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="batch-pause">Pausa entre Lotes (minutos)</Label>
+                  <Input
+                    id="batch-pause"
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={antiBanSettings.batchPauseMinutes}
+                    onChange={(e) => updateAntiBan('batchPauseMinutes', parseInt(e.target.value) || 5)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    A cada {antiBanSettings.batchSize} mensagens, pausa por {antiBanSettings.batchPauseMinutes} minutos
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border bg-background p-4 sm:col-span-2">
+                  <div>
+                    <Label htmlFor="random-variation">Variação Aleatória Básica</Label>
+                    <p className="text-xs text-muted-foreground">Adiciona espaços/caracteres invisíveis</p>
+                  </div>
+                  <Switch
+                    id="random-variation"
+                    checked={antiBanSettings.enableRandomVariation}
+                    onCheckedChange={(checked) => updateAntiBan('enableRandomVariation', checked)}
+                    disabled={antiBanSettings.enableAIVariation}
+                  />
+                </div>
+              </div>
+
+              <Button onClick={handleSaveAntiBan} className="w-full">
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Configurações Personalizadas
+              </Button>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
-        <Button onClick={handleSaveAntiBan} className="mt-6">
-          <Save className="mr-2 h-4 w-4" />
-          Salvar Configurações Anti-Ban
-        </Button>
-
         {/* Warning Box */}
-        <div className="mt-4 rounded-lg border border-warning/20 bg-warning/5 p-4">
+        <div className="mt-6 rounded-lg border border-warning/20 bg-warning/5 p-4">
           <div className="flex gap-3">
             <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
             <div className="text-sm text-muted-foreground">
               <p className="font-medium text-warning">Dicas para evitar ban:</p>
               <ul className="mt-2 list-disc space-y-1 pl-4">
-                <li>Use delays de 8-25 segundos entre mensagens</li>
-                <li>Não envie mais de 800 mensagens/dia por número</li>
-                <li>Evite mensagens idênticas (use variáveis)</li>
-                <li>Deixe o número "aquecer" por 2 semanas antes</li>
+                <li>Aqueça o número por 2 semanas antes de disparos em massa</li>
                 <li>Tenha conversas normais no WhatsApp também</li>
+                <li>Use variações de mensagem (manuais ou IA)</li>
               </ul>
             </div>
           </div>

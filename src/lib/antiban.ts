@@ -1,6 +1,9 @@
 // Anti-ban settings and utilities for WhatsApp message sending
 
+export type ProtectionLevel = 'safe' | 'moderate' | 'aggressive';
+
 export interface AntiBanSettings {
+  protectionLevel: ProtectionLevel;
   minDelaySeconds: number;
   maxDelaySeconds: number;
   dailyLimit: number;
@@ -13,26 +16,81 @@ export interface AntiBanSettings {
 const ANTIBAN_STORAGE_KEY = 'zapsender_antiban_settings';
 const DAILY_SENT_KEY = 'zapsender_daily_sent';
 
+// Presets for different protection levels
+export const protectionPresets: Record<ProtectionLevel, Omit<AntiBanSettings, 'protectionLevel' | 'enableAIVariation'>> = {
+  safe: {
+    minDelaySeconds: 15,
+    maxDelaySeconds: 45,
+    dailyLimit: 300,
+    batchSize: 20,
+    batchPauseMinutes: 10,
+    enableRandomVariation: true,
+  },
+  moderate: {
+    minDelaySeconds: 8,
+    maxDelaySeconds: 25,
+    dailyLimit: 500,
+    batchSize: 35,
+    batchPauseMinutes: 5,
+    enableRandomVariation: true,
+  },
+  aggressive: {
+    minDelaySeconds: 5,
+    maxDelaySeconds: 15,
+    dailyLimit: 800,
+    batchSize: 50,
+    batchPauseMinutes: 3,
+    enableRandomVariation: true,
+  },
+};
+
+export const protectionLevelInfo: Record<ProtectionLevel, { label: string; description: string; color: string }> = {
+  safe: {
+    label: 'Seguro',
+    description: 'Menor risco de ban, envio mais lento',
+    color: 'text-success',
+  },
+  moderate: {
+    label: 'Moderado',
+    description: 'Equilíbrio entre velocidade e segurança',
+    color: 'text-warning',
+  },
+  aggressive: {
+    label: 'Rápido',
+    description: 'Mais rápido, maior risco de ban',
+    color: 'text-destructive',
+  },
+};
+
 export const defaultAntiBanSettings: AntiBanSettings = {
-  minDelaySeconds: 8,
-  maxDelaySeconds: 25,
-  dailyLimit: 800,
-  batchSize: 50,
-  batchPauseMinutes: 5,
-  enableRandomVariation: true,
+  protectionLevel: 'moderate',
+  ...protectionPresets.moderate,
   enableAIVariation: false,
 };
 
 export function getAntiBanSettings(): AntiBanSettings {
   const stored = localStorage.getItem(ANTIBAN_STORAGE_KEY);
   if (stored) {
-    return { ...defaultAntiBanSettings, ...JSON.parse(stored) };
+    const parsed = JSON.parse(stored);
+    // Ensure protectionLevel exists for backwards compatibility
+    if (!parsed.protectionLevel) {
+      parsed.protectionLevel = 'moderate';
+    }
+    return { ...defaultAntiBanSettings, ...parsed };
   }
   return defaultAntiBanSettings;
 }
 
 export function saveAntiBanSettings(settings: AntiBanSettings): void {
   localStorage.setItem(ANTIBAN_STORAGE_KEY, JSON.stringify(settings));
+}
+
+export function getSettingsForLevel(level: ProtectionLevel, currentSettings: AntiBanSettings): AntiBanSettings {
+  return {
+    ...protectionPresets[level],
+    protectionLevel: level,
+    enableAIVariation: currentSettings.enableAIVariation,
+  };
 }
 
 export function getRandomDelay(settings: AntiBanSettings): number {
@@ -89,6 +147,17 @@ export function canSendMore(settings: AntiBanSettings): boolean {
 
 export function getRemainingDaily(settings: AntiBanSettings): number {
   return Math.max(0, settings.dailyLimit - getDailySentCount());
+}
+
+// Check if batch pause is needed
+export function shouldPauseForBatch(messageIndex: number, settings: AntiBanSettings): boolean {
+  // Pause after every batchSize messages (but not on the first message)
+  return messageIndex > 0 && messageIndex % settings.batchSize === 0;
+}
+
+// Get batch pause duration in milliseconds
+export function getBatchPauseDuration(settings: AntiBanSettings): number {
+  return settings.batchPauseMinutes * 60 * 1000;
 }
 
 // Message variation helpers to avoid detection (basic fallback)

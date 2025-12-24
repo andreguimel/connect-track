@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2, Sparkles, Eye } from 'lucide-react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2, Sparkles, Eye, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { useEvolutionInstances, EvolutionInstance } from '@/hooks/useEvolutionIn
 import { useWhatsAppGroups, WhatsAppGroup } from '@/hooks/useWhatsAppGroups';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
-import { getAntiBanSettings, getRandomDelay } from '@/lib/antiban';
+import { getAntiBanSettings, getRandomDelay, shouldPauseForBatch, getBatchPauseDuration } from '@/lib/antiban';
 import { WhatsAppPreview } from './WhatsAppPreview';
 import { SendConfirmationDialog } from './SendConfirmationDialog';
 import {
@@ -46,6 +46,8 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [campaignName, setCampaignName] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pauseCountdown, setPauseCountdown] = useState(0);
   const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
@@ -327,9 +329,40 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
         
         // Apply anti-ban delay between messages
         const antiBanSettings = getAntiBanSettings();
-        const delay = getRandomDelay(antiBanSettings);
-        console.log(`Anti-ban delay: ${delay}ms (${antiBanSettings.minDelaySeconds}s - ${antiBanSettings.maxDelaySeconds}s)`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Check if we need batch pause
+        if (shouldPauseForBatch(processed, antiBanSettings)) {
+          const pauseDuration = getBatchPauseDuration(antiBanSettings);
+          const pauseMinutes = antiBanSettings.batchPauseMinutes;
+          
+          setIsPaused(true);
+          setPauseCountdown(pauseMinutes * 60);
+          
+          toast({
+            title: "Pausa entre lotes",
+            description: `Aguardando ${pauseMinutes} minutos para proteção anti-ban...`,
+          });
+          
+          // Countdown timer
+          const countdownInterval = setInterval(() => {
+            setPauseCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(countdownInterval);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+          
+          await new Promise(resolve => setTimeout(resolve, pauseDuration));
+          clearInterval(countdownInterval);
+          setIsPaused(false);
+          setPauseCountdown(0);
+        } else {
+          const delay = getRandomDelay(antiBanSettings);
+          console.log(`Anti-ban delay: ${delay}ms (${antiBanSettings.minDelaySeconds}s - ${antiBanSettings.maxDelaySeconds}s)`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       } catch (error) {
         console.error('Error sending message:', error);
         await updateCampaignContactStatus(
@@ -529,8 +562,14 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span className="font-medium text-sm md:text-base">Enviando mensagens...</span>
+                {isPaused ? (
+                  <Clock className="h-4 w-4 text-warning" />
+                ) : (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                )}
+                <span className="font-medium text-sm md:text-base">
+                  {isPaused ? 'Pausa anti-ban...' : 'Enviando mensagens...'}
+                </span>
               </div>
               <span className="text-xs md:text-sm text-muted-foreground">
                 {sendingProgress.current} de {sendingProgress.total}
@@ -538,11 +577,25 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
             </div>
             <Progress 
               value={(sendingProgress.current / sendingProgress.total) * 100} 
-              className="h-2"
+              className={`h-2 ${isPaused ? '[&>div]:bg-warning' : ''}`}
             />
-            <p className="text-xs text-muted-foreground">
-              {Math.round((sendingProgress.current / sendingProgress.total) * 100)}% concluído
-            </p>
+            {isPaused && pauseCountdown > 0 ? (
+              <div className="flex items-center justify-between rounded-lg border border-warning/20 bg-warning/5 p-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-warning" />
+                  <span className="text-sm text-warning font-medium">
+                    Pausa entre lotes para proteção
+                  </span>
+                </div>
+                <span className="text-lg font-bold text-warning tabular-nums">
+                  {Math.floor(pauseCountdown / 60)}:{(pauseCountdown % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {Math.round((sendingProgress.current / sendingProgress.total) * 100)}% concluído
+              </p>
+            )}
           </div>
         </div>
       )}
