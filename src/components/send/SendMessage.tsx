@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2, Sparkles, Eye, Clock } from 'lucide-react';
+import { Send, Users, Check, AlertCircle, Loader2, Tag, FileText, Calendar, Image, Video, Music, X, Upload, Wifi, Users2, RefreshCw, Lock, Plus, Shuffle, Trash2, Sparkles, Eye, Clock, Pause, Play, Square } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,8 +47,11 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [pauseCountdown, setPauseCountdown] = useState(0);
   const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0 });
+  const pauseRef = useRef(false);
+  const stopRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('none');
@@ -263,6 +266,9 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     }
 
     setIsSending(true);
+    pauseRef.current = false;
+    stopRef.current = false;
+    setIsManuallyPaused(false);
     await updateCampaign(campaign.id, { status: 'running' });
 
     const campaignContacts = await getCampaignContacts(campaign.id);
@@ -274,6 +280,23 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
     const variations = campaign.message_variations;
 
     for (const cc of pendingContacts) {
+      // Check if stopped
+      if (stopRef.current) {
+        toast({
+          title: "Campanha interrompida",
+          description: `${processed} mensagens enviadas de ${pendingContacts.length}`,
+        });
+        await updateCampaign(campaign.id, { status: 'paused' });
+        break;
+      }
+
+      // Check if manually paused
+      while (pauseRef.current && !stopRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      if (stopRef.current) break;
+
       try {
         await updateCampaignContactStatus(campaign.id, cc.contact_id, 'sending');
 
@@ -374,15 +397,43 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       }
     }
 
-    await updateCampaign(campaign.id, { status: 'completed', completed_at: new Date().toISOString() });
+    // Only mark as completed if not stopped
+    if (!stopRef.current) {
+      await updateCampaign(campaign.id, { status: 'completed', completed_at: new Date().toISOString() });
+      toast({
+        title: "Campanha finalizada",
+        description: "Verifique o status dos envios na aba Campanhas",
+      });
+    }
 
     setIsSending(false);
+    setIsManuallyPaused(false);
     setSendingProgress({ current: 0, total: 0 });
-    toast({
-      title: "Campanha finalizada",
-      description: "Verifique o status dos envios na aba Campanhas",
-    });
     onCampaignCreated();
+  };
+
+  const handlePauseCampaign = () => {
+    pauseRef.current = true;
+    setIsManuallyPaused(true);
+    toast({
+      title: "Campanha pausada",
+      description: "Clique em retomar para continuar o envio",
+    });
+  };
+
+  const handleResumeCampaign = () => {
+    pauseRef.current = false;
+    setIsManuallyPaused(false);
+    toast({
+      title: "Campanha retomada",
+      description: "Continuando envio das mensagens",
+    });
+  };
+
+  const handleStopCampaign = () => {
+    stopRef.current = true;
+    pauseRef.current = false;
+    setIsManuallyPaused(false);
   };
 
   const totalSelectedRecipients = selectedContactIds.size + selectedGroupJids.size;
@@ -559,16 +610,18 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
       {/* Progress Bar during sending */}
       {isSending && sendingProgress.total > 0 && (
         <div className="rounded-xl border bg-card p-4 md:p-6 shadow-sm animate-fade-in">
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {isPaused ? (
+                {isManuallyPaused ? (
+                  <Pause className="h-4 w-4 text-warning" />
+                ) : isPaused ? (
                   <Clock className="h-4 w-4 text-warning" />
                 ) : (
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
                 )}
                 <span className="font-medium text-sm md:text-base">
-                  {isPaused ? 'Pausa anti-ban...' : 'Enviando mensagens...'}
+                  {isManuallyPaused ? 'Campanha pausada' : isPaused ? 'Pausa anti-ban...' : 'Enviando mensagens...'}
                 </span>
               </div>
               <div className="text-right">
@@ -584,10 +637,12 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                 </p>
               </div>
             </div>
+            
             <Progress 
               value={(sendingProgress.current / sendingProgress.total) * 100} 
-              className={`h-2 ${isPaused ? '[&>div]:bg-warning' : ''}`}
+              className={`h-2 ${isPaused || isManuallyPaused ? '[&>div]:bg-warning' : ''}`}
             />
+            
             {isPaused && pauseCountdown > 0 ? (
               <div className="flex items-center justify-between rounded-lg border border-warning/20 bg-warning/5 p-3">
                 <div className="flex items-center gap-2">
@@ -605,6 +660,25 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                 {Math.round((sendingProgress.current / sendingProgress.total) * 100)}% concluído
               </p>
             )}
+
+            {/* Control Buttons */}
+            <div className="flex gap-2">
+              {isManuallyPaused ? (
+                <Button onClick={handleResumeCampaign} className="flex-1" variant="default">
+                  <Play className="mr-2 h-4 w-4" />
+                  Retomar
+                </Button>
+              ) : (
+                <Button onClick={handlePauseCampaign} className="flex-1" variant="outline">
+                  <Pause className="mr-2 h-4 w-4" />
+                  Pausar
+                </Button>
+              )}
+              <Button onClick={handleStopCampaign} variant="destructive">
+                <Square className="mr-2 h-4 w-4" />
+                Parar
+              </Button>
+            </div>
           </div>
         </div>
       )}
