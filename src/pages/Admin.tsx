@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { Users, Smartphone, MessageSquare, BarChart3, Shield, Edit, ArrowLeft, Zap } from 'lucide-react';
+import { Users, Smartphone, MessageSquare, BarChart3, Shield, Edit, ArrowLeft, Zap, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -113,9 +113,17 @@ export default function Admin() {
       </header>
 
       <main className="p-4 md:p-8 overflow-auto">
-        <div className="flex items-center gap-2 md:gap-3 mb-6 md:mb-8">
-          <Shield className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-          <h1 className="text-xl md:text-3xl font-bold">Painel de Administração</h1>
+        <div className="flex items-center justify-between mb-6 md:mb-8">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Shield className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+            <h1 className="text-xl md:text-3xl font-bold">Painel de Administração</h1>
+          </div>
+          <Link to="/admin/payments">
+            <Button variant="outline" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden sm:inline">Pagamentos</span>
+            </Button>
+          </Link>
         </div>
 
         {/* Stats Cards */}

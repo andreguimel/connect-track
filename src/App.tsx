@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Landing from "./pages/Landing";
 import Admin from "./pages/Admin";
+import AdminPayments from "./pages/AdminPayments";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -49,6 +50,14 @@ const AppRoutes = () => (
         element={
           <ProtectedRoute>
             <Admin />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/payments"
+        element={
+          <ProtectedRoute>
+            <AdminPayments />
           </ProtectedRoute>
         }
       />
