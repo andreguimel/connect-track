@@ -339,7 +339,7 @@ export function ImportChatwootContacts({ onImportComplete }: ImportChatwootConta
                   {contactsWithTicket > 0 && (
                     <span className="flex items-center gap-1 text-primary">
                       <Tag className="h-4 w-4" />
-                      {contactsWithTicket} com ticket
+                      {contactsWithTicket} com etiqueta
                     </span>
                   )}
                 </div>
@@ -410,12 +410,12 @@ export function ImportChatwootContacts({ onImportComplete }: ImportChatwootConta
                   {contactsWithTicket > 0 && (
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        id="use-ticket"
+                        id="use-label"
                         checked={useTicketAsCategory}
                         onCheckedChange={(checked) => setUseTicketAsCategory(!!checked)}
                       />
-                      <Label htmlFor="use-ticket" className="text-sm cursor-pointer">
-                        Usar ticket do Chatwoot como categoria
+                      <Label htmlFor="use-label" className="text-sm cursor-pointer">
+                        Usar etiqueta do Chatwoot como categoria
                       </Label>
                     </div>
                   )}
