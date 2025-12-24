@@ -174,3 +174,48 @@ export function addMessageVariation(message: string): string {
   const randomVariation = variations[Math.floor(Math.random() * variations.length)];
   return randomVariation();
 }
+
+// Calculate estimated time in seconds for sending messages
+export function calculateEstimatedTime(
+  totalMessages: number, 
+  currentMessage: number,
+  settings: AntiBanSettings
+): number {
+  const remainingMessages = totalMessages - currentMessage;
+  if (remainingMessages <= 0) return 0;
+  
+  // Average delay per message
+  const avgDelaySeconds = (settings.minDelaySeconds + settings.maxDelaySeconds) / 2;
+  
+  // Calculate how many batch pauses will occur
+  const messagesInCurrentBatch = currentMessage % settings.batchSize;
+  const remainingInCurrentBatch = settings.batchSize - messagesInCurrentBatch;
+  const messagesAfterFirstBatch = Math.max(0, remainingMessages - remainingInCurrentBatch);
+  const fullBatchPauses = Math.floor(messagesAfterFirstBatch / settings.batchSize);
+  const hasPartialBatch = remainingInCurrentBatch < remainingMessages;
+  const totalBatchPauses = fullBatchPauses + (hasPartialBatch ? 1 : 0);
+  
+  // Total time = (remaining messages * avg delay) + (batch pauses * pause duration)
+  const messageTime = remainingMessages * avgDelaySeconds;
+  const pauseTime = totalBatchPauses * settings.batchPauseMinutes * 60;
+  
+  return Math.round(messageTime + pauseTime);
+}
+
+// Format seconds to readable time string
+export function formatTimeRemaining(totalSeconds: number): string {
+  if (totalSeconds <= 0) return '< 1 min';
+  
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  
+  if (hours > 0) {
+    return `~${hours}h ${minutes}min`;
+  }
+  
+  if (minutes > 0) {
+    return `~${minutes} min`;
+  }
+  
+  return '< 1 min';
+}

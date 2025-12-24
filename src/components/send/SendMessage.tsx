@@ -14,7 +14,7 @@ import { useEvolutionInstances, EvolutionInstance } from '@/hooks/useEvolutionIn
 import { useWhatsAppGroups, WhatsAppGroup } from '@/hooks/useWhatsAppGroups';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
-import { getAntiBanSettings, getRandomDelay, shouldPauseForBatch, getBatchPauseDuration } from '@/lib/antiban';
+import { getAntiBanSettings, getRandomDelay, shouldPauseForBatch, getBatchPauseDuration, calculateEstimatedTime, formatTimeRemaining } from '@/lib/antiban';
 import { WhatsAppPreview } from './WhatsAppPreview';
 import { SendConfirmationDialog } from './SendConfirmationDialog';
 import {
@@ -571,9 +571,18 @@ export function SendMessage({ webhookUrl, onCampaignCreated }: SendMessageProps)
                   {isPaused ? 'Pausa anti-ban...' : 'Enviando mensagens...'}
                 </span>
               </div>
-              <span className="text-xs md:text-sm text-muted-foreground">
-                {sendingProgress.current} de {sendingProgress.total}
-              </span>
+              <div className="text-right">
+                <span className="text-xs md:text-sm text-muted-foreground">
+                  {sendingProgress.current} de {sendingProgress.total}
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  {formatTimeRemaining(calculateEstimatedTime(
+                    sendingProgress.total, 
+                    sendingProgress.current, 
+                    getAntiBanSettings()
+                  ))} restantes
+                </p>
+              </div>
             </div>
             <Progress 
               value={(sendingProgress.current / sendingProgress.total) * 100} 
