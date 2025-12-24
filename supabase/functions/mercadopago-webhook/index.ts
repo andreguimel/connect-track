@@ -71,24 +71,55 @@ serve(async (req) => {
         const subscriptionEndsAt = new Date();
         subscriptionEndsAt.setMonth(subscriptionEndsAt.getMonth() + 1);
 
-        // Update or create subscription with plan_type
-        const { error } = await supabase
+        // First check if subscription exists
+        const { data: existingSubscription, error: fetchError } = await supabase
           .from("subscriptions")
-          .update({
-            status: "active",
-            plan_type: planType,
-            subscription_started_at: subscriptionStartsAt.toISOString(),
-            subscription_ends_at: subscriptionEndsAt.toISOString(),
-            mercadopago_payer_id: payment.payer?.id?.toString() || null,
-          })
-          .eq("user_id", userId);
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
 
-        if (error) {
-          console.error("Error updating subscription:", error);
-          throw error;
+        if (fetchError) {
+          console.error("Error fetching subscription:", fetchError);
+          throw fetchError;
         }
 
-        console.log(`Subscription activated for user ${userId} with plan ${planType}`);
+        let result;
+        if (existingSubscription) {
+          // Update existing subscription
+          result = await supabase
+            .from("subscriptions")
+            .update({
+              status: "active",
+              plan_type: planType,
+              subscription_started_at: subscriptionStartsAt.toISOString(),
+              subscription_ends_at: subscriptionEndsAt.toISOString(),
+              mercadopago_payer_id: payment.payer?.id?.toString() || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", userId);
+        } else {
+          // Create new subscription (should not happen normally, but fallback)
+          console.log("No existing subscription found, creating new one");
+          result = await supabase
+            .from("subscriptions")
+            .insert({
+              user_id: userId,
+              status: "active",
+              plan_type: planType,
+              trial_started_at: subscriptionStartsAt.toISOString(),
+              trial_ends_at: subscriptionStartsAt.toISOString(),
+              subscription_started_at: subscriptionStartsAt.toISOString(),
+              subscription_ends_at: subscriptionEndsAt.toISOString(),
+              mercadopago_payer_id: payment.payer?.id?.toString() || null,
+            });
+        }
+
+        if (result.error) {
+          console.error("Error saving subscription:", result.error);
+          throw result.error;
+        }
+
+        console.log(`Subscription activated for user ${userId} with plan ${planType}, ends at ${subscriptionEndsAt.toISOString()}`);
       }
     }
 
