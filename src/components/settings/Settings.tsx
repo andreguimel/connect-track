@@ -314,42 +314,6 @@ export function Settings({ webhookUrl, onWebhookChange }: SettingsProps) {
             </div>
           </div>
 
-          {/* AI Variation Toggle - Always visible */}
-          <div className="flex items-center justify-between rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Zap className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="ai-variation">Variação por IA</Label>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    Recomendado
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Reescreve cada mensagem de forma única automaticamente
-                </p>
-              </div>
-            </div>
-            <Switch
-              id="ai-variation"
-              checked={antiBanSettings.enableAIVariation}
-              onCheckedChange={(checked) => updateAntiBan('enableAIVariation', checked)}
-            />
-          </div>
-
-          {antiBanSettings.enableAIVariation && (
-            <div className="rounded-lg border border-info/20 bg-info/5 p-3">
-              <div className="flex gap-2">
-                <Info className="h-4 w-4 shrink-0 text-info" />
-                <p className="text-xs text-muted-foreground">
-                  A IA reescreverá cada mensagem mantendo o significado, mas com palavras e estrutura diferentes.
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Advanced Settings - Collapsible */}
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
