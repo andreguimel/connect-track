@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, Shield, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Shield, MessageSquare, CheckCircle2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { getAntiBanSettings, calculateEstimatedTime, formatTimeRemaining } from '@/lib/antiban';
 
 interface SendConfirmationDialogProps {
   open: boolean;
@@ -30,6 +31,10 @@ export function SendConfirmationDialog({
   const [acceptedResponsibility, setAcceptedResponsibility] = useState(false);
 
   const canConfirm = acceptedTerms && acceptedResponsibility;
+
+  const antiBanSettings = getAntiBanSettings();
+  const estimatedTimeSeconds = calculateEstimatedTime(recipientCount, 0, antiBanSettings);
+  const estimatedTimeFormatted = formatTimeRemaining(estimatedTimeSeconds);
 
   const handleConfirm = () => {
     if (canConfirm) {
@@ -65,6 +70,21 @@ export function SendConfirmationDialog({
         </AlertDialogHeader>
 
         <div className="my-4 space-y-4">
+          {/* Estimated Time Box */}
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                <span className="font-medium text-foreground">Tempo Estimado</span>
+              </div>
+              <span className="text-lg font-bold text-primary">{estimatedTimeFormatted}</span>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Baseado nas configurações anti-ban: {antiBanSettings.minDelaySeconds}-{antiBanSettings.maxDelaySeconds}s entre mensagens, 
+              pausas de {antiBanSettings.batchPauseMinutes}min a cada {antiBanSettings.batchSize} envios
+            </p>
+          </div>
+
           {/* Warning Box */}
           <div className="rounded-lg border border-warning/30 bg-warning/10 p-4">
             <h4 className="mb-2 flex items-center gap-2 font-semibold text-warning">
