@@ -42,11 +42,43 @@ serve(async (req) => {
       const payment = await paymentResponse.json();
       console.log("Payment details:", JSON.stringify(payment, null, 2));
 
-      if (payment.status === "approved") {
-        let userId: string;
-        let planType: string = 'standard';
+      // Parse external_reference - it can be JSON or just userId (legacy)
+      let userId: string = '';
+      let planType: string = 'standard';
 
-        // Parse external_reference - it can be JSON or just userId (legacy)
+      try {
+        const refData = JSON.parse(payment.external_reference);
+        userId = refData.userId;
+        planType = refData.planType || 'standard';
+      } catch {
+        // Legacy format: just the userId string
+        userId = payment.external_reference;
+      }
+
+      // Save payment record regardless of status
+      if (userId) {
+        const { error: paymentError } = await supabase
+          .from("payments")
+          .insert({
+            user_id: userId,
+            mercadopago_payment_id: data.id?.toString(),
+            status: payment.status,
+            amount: payment.transaction_amount || 0,
+            plan_type: planType,
+            payer_email: payment.payer?.email || null,
+            payer_id: payment.payer?.id?.toString() || null,
+            payment_method: payment.payment_method_id || payment.payment_type_id || null,
+          });
+
+        if (paymentError) {
+          console.error("Error saving payment record:", paymentError);
+        } else {
+          console.log("Payment record saved successfully");
+        }
+      }
+
+      if (payment.status === "approved") {
+        // Already parsed userId and planType above
         try {
           const refData = JSON.parse(payment.external_reference);
           userId = refData.userId;

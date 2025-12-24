@@ -267,6 +267,48 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          mercadopago_payment_id: string | null
+          payer_email: string | null
+          payer_id: string | null
+          payment_method: string | null
+          plan_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          mercadopago_payment_id?: string | null
+          payer_email?: string | null
+          payer_id?: string | null
+          payment_method?: string | null
+          plan_type?: string
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          mercadopago_payment_id?: string | null
+          payer_email?: string | null
+          payer_id?: string | null
+          payment_method?: string | null
+          plan_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -499,6 +541,21 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      get_admin_payment_stats: {
+        Args: never
+        Returns: {
+          amount: number
+          created_at: string
+          mercadopago_payment_id: string
+          payer_email: string
+          payment_id: string
+          payment_method: string
+          plan_type: string
+          status: string
+          user_email: string
+          user_id: string
+        }[]
       }
       get_admin_user_stats: {
         Args: never
