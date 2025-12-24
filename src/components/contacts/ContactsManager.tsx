@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useContacts, useGroups, Contact, ContactGroup } from '@/hooks/useData';
 import { useToast } from '@/hooks/use-toast';
 import { ImportWhatsAppContacts } from './ImportWhatsAppContacts';
+import { ImportChatwootContacts } from './ImportChatwootContacts';
 import {
   Table,
   TableBody,
@@ -371,6 +372,7 @@ export function ContactsManager() {
           <input id="csv-upload" type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
 
           <ImportWhatsAppContacts onImportComplete={fetchContacts} />
+          <ImportChatwootContacts onImportComplete={fetchContacts} />
 
           <Dialog open={isGroupDialogOpen} onOpenChange={(open) => {
             setIsGroupDialogOpen(open);
